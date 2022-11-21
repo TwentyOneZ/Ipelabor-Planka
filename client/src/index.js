@@ -1,10 +1,10 @@
 import React from 'react';
-import { createRoot } from 'react-dom/client';
+import ReactDOM from 'react-dom/client';
 
 import store, { history } from './store';
 import Root from './components/Root';
 
 import './i18n';
 
-const root = createRoot(document.getElementById('user'));
+const root = ReactDOM.createRoot(document.getElementById('user'));
 root.render(React.createElement(Root, { store, history }));
