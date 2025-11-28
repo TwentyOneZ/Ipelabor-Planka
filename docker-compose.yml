@@ -1,136 +1,56 @@
+version: '3.8'
+
 services:
+  # 1. SERVIÇO DE TUNELAMENTO SSH DEDICADO (Mantido, assumindo que é necessário para outro serviço)
+  ssh_tunnel:
+    build:
+      context: .
+      dockerfile: dockerfile.ssh
+    container_name: ssh_tunnel_metabase
+    restart: unless-stopped
+    # logging:
+    #   driver: "none"
+
   planka:
     image: ghcr.io/plankanban/planka:2.0.0-rc.4
     restart: on-failure
+
     volumes:
       - favicons:/app/public/favicons
       - user-avatars:/app/public/user-avatars
       - background-images:/app/public/background-images
       - attachments:/app/private/attachments
-    # Optionally override this to your user/group
-    # user: 1000:1000
-    # tmpfs:
-    #   - /app/.tmp:mode=770,uid=1000,gid=1000
+
     ports:
-      - 3000:1337
+      - 7002:1337
+
     environment:
-      - BASE_URL=http://localhost:3000
-      - DATABASE_URL=postgresql://postgres@postgres/planka
+      - BASE_URL=http://ipelabor.sytes.net:7002
 
-      # Optionally store the database password in secrets:
-      # - DATABASE_URL=postgresql://postgres:$${DATABASE_PASSWORD}@postgres/planka
-      # - DATABASE_PASSWORD__FILE=/run/secrets/database_password
-      # And add the following to the service:
-      # secrets:
-      #   - database_password
+      # 🚀 MUDANÇA CRÍTICA: DATABASE_URL APONTANDO PARA O SERVIDOR EXTERNO
+      # Formato: postgresql://user:password@host:port/database
+      # Usando 'root', 'q1w2e3', 'ipelabor.sytes.net', porta '7432' e 'planka' (BD padrão)
+      - DATABASE_URL=postgresql://root:q1w2e3@ipelabor.sytes.net:7432/planka
 
-      - SECRET_KEY=notsecretkey
-      # Optionally store in secrets - then SECRET_KEY should not be set
-      # - SECRET_KEY__FILE=/run/secrets/secret_key
+      - SECRET_KEY=8A5kLzTq9oPj1fGyC4hR2sXbN7vM3uW6eD0iFaE5gB9cJxK7lY8mZ4pV6rS3tQ2wU1
 
+      # 📝 Configuração de administrador padrão do Planka (Recomendado para primeiro acesso)
+      - DEFAULT_ADMIN_EMAIL=gustavo.souza@ipelabor.com.br
+      - DEFAULT_ADMIN_PASSWORD=MagicKir137!
+      - DEFAULT_ADMIN_NAME=Gustavo Souza
+      - DEFAULT_ADMIN_USERNAME=twentyone
+      # Outras configurações opcionais
       # - LOG_LEVEL=warn
+      # ... (demais variáveis de ambiente comentadas)
 
-      # - TRUST_PROXY=true
-      # - MAX_UPLOAD_FILE_SIZE=
-      # - TOKEN_EXPIRES_IN=365 # In days
-
-      # related: https://github.com/knex/knex/issues/2354
-      # As knex does not pass query parameters from the connection string,
-      # we have to use environment variables in order to pass the desired values, e.g.
-      # - PGSSLMODE=<value>
-
-      # Configure knex to accept SSL certificates
-      # - KNEX_REJECT_UNAUTHORIZED_SSL_CERTIFICATE=false
-
-      # The default application language used as a fallback when a user's language is not set.
-      # This language is also used for per-board notifications.
-      # - DEFAULT_LANGUAGE=en-US
-
-      # Do not comment out DEFAULT_ADMIN_EMAIL if you want to prevent this user from being edited/deleted
-      # - DEFAULT_ADMIN_EMAIL=demo@demo.demo
-      # - DEFAULT_ADMIN_PASSWORD=demo
-      # Optionally store in secrets - then DEFAULT_ADMIN_PASSWORD should not be set
-      # - DEFAULT_ADMIN_PASSWORD__FILE=/run/secrets/default_admin_password
-      # - DEFAULT_ADMIN_NAME=Demo Demo
-      # - DEFAULT_ADMIN_USERNAME=demo
-
-      # - INTERNAL_ACCESS_TOKEN=
-      # - STORAGE_LIMIT=
-      # - ACTIVE_USERS_LIMIT=
-
-      # Set to true to show more detailed authentication error messages.
-      # It should not be enabled without a rate limiter for security reasons.
-      # - SHOW_DETAILED_AUTH_ERRORS=false
-
-      # - S3_ENDPOINT=
-      # - S3_REGION=
-      # - S3_ACCESS_KEY_ID=
-      # - S3_SECRET_ACCESS_KEY=
-      # Optionally store in secrets - then S3_SECRET_ACCESS_KEY should not be set
-      # - S3_SECRET_ACCESS_KEY__FILE=/run/secrets/s3_secret_access_key
-      # - S3_BUCKET=
-      # - S3_FORCE_PATH_STYLE=true
-
-      # - OIDC_ISSUER=
-      # - OIDC_CLIENT_ID=
-      # - OIDC_CLIENT_SECRET=
-      # Optionally store in secrets - then OIDC_CLIENT_SECRET should not be set
-      # - OIDC_CLIENT_SECRET__FILE=/run/secrets/oidc_client_secret
-      # - OIDC_USE_OAUTH_CALLBACK=true
-      # - OIDC_ID_TOKEN_SIGNED_RESPONSE_ALG=
-      # - OIDC_USERINFO_SIGNED_RESPONSE_ALG=
-      # - OIDC_SCOPES=openid email profile
-      # - OIDC_RESPONSE_MODE=fragment
-      # - OIDC_USE_DEFAULT_RESPONSE_MODE=true
-      # - OIDC_ADMIN_ROLES=admin
-      # - OIDC_PROJECT_OWNER_ROLES=project_owner
-      # - OIDC_BOARD_USER_ROLES=board_user
-      # - OIDC_CLAIMS_SOURCE=userinfo
-      # - OIDC_EMAIL_ATTRIBUTE=email
-      # - OIDC_NAME_ATTRIBUTE=name
-      # - OIDC_USERNAME_ATTRIBUTE=preferred_username
-      # - OIDC_ROLES_ATTRIBUTE=groups
-      # - OIDC_IGNORE_USERNAME=true
-      # - OIDC_IGNORE_ROLES=true
-      # - OIDC_ENFORCED=true
-
-      # Email Notifications (https://nodemailer.com/smtp/)
-      # These values override and disable configuration in the UI if set.
-      # - SMTP_HOST=
-      # - SMTP_PORT=587
-      # - SMTP_NAME=
-      # - SMTP_SECURE=true
-      # - SMTP_TLS_REJECT_UNAUTHORIZED=false
-      # - SMTP_USER=
-      # - SMTP_PASSWORD=
-      # Optionally store in secrets - then SMTP_PASSWORD should not be set
-      # - SMTP_PASSWORD__FILE=/run/secrets/smtp_password
-      # - SMTP_FROM="Demo Demo" <demo@demo.demo>
-
-      # Using Gravatar directly exposes user IPs and hashed emails to a third party (GDPR risk).
-      # Use a proxy you control for privacy, or leave commented out or empty to disable.
-      # - GRAVATAR_BASE_URL=https://www.gravatar.com/avatar/
     depends_on:
-      postgres:
-        condition: service_healthy
+      ssh_tunnel:
+        condition: service_started
+      # 💥 DEPENDÊNCIA DO POSTGRES LOCAL REMOVIDA
 
-  postgres:
-    image: postgres:16-alpine
-    restart: on-failure
-    volumes:
-      - db-data:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_DB=planka
-      - POSTGRES_HOST_AUTH_METHOD=trust
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d planka"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
+      # Definição dos volumes para persistência de arquivos do Planka
 volumes:
   favicons:
   user-avatars:
   background-images:
-  attachments:
-  db-data:
+  attachments: # 💥 VOLUME 'db-data' REMOVIDO

@@ -1,0 +1,27 @@
+# Usa uma imagem Alpine leve e estável
+FROM alpine:latest
+
+# Instala o cliente SSH (openssh-client)
+RUN apk update && \
+    apk add --no-cache openssh-client
+
+# Cria o diretório de configuração SSH e define as permissões
+RUN mkdir -p /root/.ssh
+RUN chmod 700 /root/.ssh
+
+# Copia a chave privada para dentro do contêiner
+COPY ipelabor.key /root/.ssh/id_rsa
+
+# Define as permissões corretas para a chave privada (obrigatório pelo SSH)
+RUN chmod 600 /root/.ssh/id_rsa
+
+# NOVO COMANDO:
+# 1. Usa -L para o túnel local (porta 7002).
+# 2. Adiciona -o ExitOnForwardFailure=yes para reiniciar automaticamente em caso de falha de bind.
+ENTRYPOINT ["ssh", "-N", \
+            "-R", "7002:planka:1337", \
+            "-i", "/root/.ssh/id_rsa", \
+            "-o", "UserKnownHostsFile=/dev/null", \
+            "-o", "StrictHostKeyChecking=no", \
+            "-o", "ExitOnForwardFailure=yes", \
+            "ipelabor_marketing@ipelabor.sytes.net"]
