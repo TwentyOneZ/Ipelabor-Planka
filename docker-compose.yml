@@ -42,7 +42,19 @@ services:
       - DEFAULT_ADMIN_USERNAME=twentyone
       # Outras configurações opcionais
       # - LOG_LEVEL=warn
-      # ... (demais variáveis de ambiente comentadas)
+
+      # Email Notifications (https://nodemailer.com/smtp/)
+      # These values override and disable configuration in the UI if set.
+      - SMTP_HOST=mail.ipelabor.com.br
+      - SMTP_PORT=465
+      - SMTP_NAME=Gustavo Souza
+      - SMTP_SECURE=true
+      - SMTP_TLS_REJECT_UNAUTHORIZED=false
+      - SMTP_USER=gustavo.souza@ipelabor.com.br
+      - SMTP_PASSWORD=MagicKir137!
+      # Optionally store in secrets - then SMTP_PASSWORD should not be set
+      # - SMTP_PASSWORD__FILE=/run/secrets/smtp_password
+      - SMTP_FROM="Gustavo Souza" <gustavo.souza@ipelabor.com.br>
 
     depends_on:
       ssh_tunnel:
