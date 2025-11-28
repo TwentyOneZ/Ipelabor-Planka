@@ -42,7 +42,19 @@ services:
       - DEFAULT_ADMIN_USERNAME=admin
       # Outras configurações opcionais
       # - LOG_LEVEL=warn
-      # ... (demais variáveis de ambiente comentadas)
+
+      # Email Notifications (https://nodemailer.com/smtp/)
+      # These values override and disable configuration in the UI if set.
+      - SMTP_HOST=smtp.example.com
+      - SMTP_PORT=465
+      - SMTP_NAME=Administrator
+      - SMTP_SECURE=true
+      - SMTP_TLS_REJECT_UNAUTHORIZED=false
+      - SMTP_USER=admin@example.com
+      - SMTP_PASSWORD=change-me
+      # Optionally store in secrets - then SMTP_PASSWORD should not be set
+      # - SMTP_PASSWORD__FILE=/run/secrets/smtp_password
+      - SMTP_FROM="Administrator" <admin@example.com>
 
     depends_on:
       ssh_tunnel:
