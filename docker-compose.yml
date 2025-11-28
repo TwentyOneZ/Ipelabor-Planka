@@ -6,7 +6,7 @@ services:
     build:
       context: .
       dockerfile: dockerfile.ssh
-    container_name: ssh_tunnel_metabase
+    container_name: ssh_tunnel_planka
     restart: unless-stopped
     # logging:
     #   driver: "none"
