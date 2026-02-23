@@ -1,4 +1,13 @@
-# [2.0.1] - 2026-02-17
+# [2.0.2] - 2026-02-23
+
+### Fixed
+
+* Prevent dropzone from overflowing content
+* Update Gravatar hash algorithm
+* Improve backup and restore scripts
+* Improve installation on Windows and containerized environments
+
+## [2.0.1] - 2026-02-17
 
 ### Fixed
 
