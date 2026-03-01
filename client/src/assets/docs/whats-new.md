@@ -1,4 +1,10 @@
-# [2.0.2] - 2026-02-23
+# [2.0.3] - 2026-03-01
+
+### Fixed
+
+* Improve security by ensuring the outgoing proxy is not accessible from outside
+
+## [2.0.2] - 2026-02-23
 
 ### Fixed
 
