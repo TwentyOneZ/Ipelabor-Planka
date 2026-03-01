@@ -1,8 +1,8 @@
 diff --git a/node_modules/@gravity-ui/markdown-editor/build/esm/bundle/wysiwyg-preset.js b/node_modules/@gravity-ui/markdown-editor/build/esm/bundle/wysiwyg-preset.js
-index dec01f0..a80b857 100644
+index c0d13c3..4c6e4e9 100644
 --- a/node_modules/@gravity-ui/markdown-editor/build/esm/bundle/wysiwyg-preset.js
 +++ b/node_modules/@gravity-ui/markdown-editor/build/esm/bundle/wysiwyg-preset.js
-@@ -102,7 +102,6 @@ export const BundlePreset = (builder, opts) => {
+@@ -107,7 +107,6 @@ export const BundlePreset = (builder, opts) => {
              enableNewImageSizeCalculation: opts.enableNewImageSizeCalculation,
              ...opts.imgSize,
          },
@@ -10,7 +10,7 @@ index dec01f0..a80b857 100644
          deflist: {
              deflistTermPlaceholder: () => i18nPlaceholder('deflist_term'),
              deflistDescPlaceholder: () => i18nPlaceholder('deflist_desc'),
-@@ -123,11 +122,6 @@ export const BundlePreset = (builder, opts) => {
+@@ -128,11 +127,6 @@ export const BundlePreset = (builder, opts) => {
              ...opts.yfmTable,
              controls: opts.mobile ? false : opts.yfmTable?.controls,
          },
@@ -36,6 +36,23 @@ index 8aefe20..99e59e3 100644
          }
          if (options.pmTransformers) {
              this.#pmTransformers = options.pmTransformers;
+diff --git a/node_modules/@gravity-ui/markdown-editor/build/esm/extensions/markdown/CodeBlock/CodeBlockHighlight/TooltipPlugin/index.js b/node_modules/@gravity-ui/markdown-editor/build/esm/extensions/markdown/CodeBlock/CodeBlockHighlight/TooltipPlugin/index.js
+index 5eec9bb..3abd31a 100644
+--- a/node_modules/@gravity-ui/markdown-editor/build/esm/extensions/markdown/CodeBlock/CodeBlockHighlight/TooltipPlugin/index.js
++++ b/node_modules/@gravity-ui/markdown-editor/build/esm/extensions/markdown/CodeBlock/CodeBlockHighlight/TooltipPlugin/index.js
+@@ -75,12 +75,6 @@ export const codeLangSelectTooltipViewCreator = (view, langItems, mapping = {},
+                                     dispatch: view.dispatch,
+                                 }),
+                             },
+-                        {
+-                            id: 'code-block-copy',
+-                            type: ToolbarDataType.ReactNodeFn,
+-                            width: 28,
+-                            content: () => _jsx(ClipboardButton, { text: node.textContent }),
+-                        },
+                     ].filter(isTruthy),
+                     [
+                         {
 diff --git a/node_modules/@gravity-ui/markdown-editor/build/esm/extensions/yfm/YfmNote/YfmNoteSpecs/index.js b/node_modules/@gravity-ui/markdown-editor/build/esm/extensions/yfm/YfmNote/YfmNoteSpecs/index.js
 index 212c583..b709383 100644
 --- a/node_modules/@gravity-ui/markdown-editor/build/esm/extensions/yfm/YfmNote/YfmNoteSpecs/index.js
