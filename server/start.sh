@@ -41,7 +41,7 @@ start_outgoing_proxy_if_needed() {
 
   # Basic settings
   echo "pid_filename $SQUID_PID" >> "$SQUID_CONF"
-  echo "http_port 3128" >> "$SQUID_CONF"
+  echo "http_port 127.0.0.1:3128" >> "$SQUID_CONF"
   echo "acl all src all" >> "$SQUID_CONF"
 
   # Disable caching
@@ -52,11 +52,11 @@ start_outgoing_proxy_if_needed() {
   echo "cache_swap_high 0" >> "$SQUID_CONF"
 
   # Disable logs
-  echo "access_log /tmp/test.log" >> "$SQUID_CONF"
+  echo "access_log none" >> "$SQUID_CONF"
   echo "cache_store_log none" >> "$SQUID_CONF"
   echo "cache_log /dev/null" >> "$SQUID_CONF"
   echo "logfile_rotate 0" >> "$SQUID_CONF"
-  echo "debug_options ALL,1" >> "$SQUID_CONF"
+  echo "debug_options ALL,0" >> "$SQUID_CONF"
 
   # Make it pass-through like
   echo "forwarded_for delete" >> "$SQUID_CONF"
@@ -64,6 +64,10 @@ start_outgoing_proxy_if_needed() {
   echo "request_header_access X-Forwarded-For deny all" >> "$SQUID_CONF"
   echo "request_header_access Via deny all" >> "$SQUID_CONF"
   echo "request_header_access Cache-Control deny all" >> "$SQUID_CONF"
+
+  # Allow only local sources
+  echo "acl localhost_src src 127.0.0.1" >> "$SQUID_CONF"
+  echo "http_access deny !localhost_src" >> "$SQUID_CONF"
 
   # Blocked IPs
   if [[ -n "${OUTGOING_BLOCKED_IPS:-}" ]]; then
