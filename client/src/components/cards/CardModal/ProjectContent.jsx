@@ -33,7 +33,7 @@ import ExpandableMarkdown from '../../common/ExpandableMarkdown';
 import EditMarkdown from '../../common/EditMarkdown';
 import ConfirmationStep from '../../common/ConfirmationStep';
 import UserAvatar from '../../users/UserAvatar';
-import BoardMembershipsStep from '../../board-memberships/BoardMembershipsStep';
+import CardMembershipsStep from '../CardMembershipsStep';
 import LabelChip from '../../labels/LabelChip';
 import LabelsStep from '../../labels/LabelsStep';
 import ListsStep from '../../lists/ListsStep';
@@ -288,7 +288,7 @@ const ProjectContent = React.memo(() => {
   }, [isEditDescriptionOpened]);
 
   const CreationDetailsPopup = usePopupInClosableContext(CreationDetailsStep);
-  const BoardMembershipsPopup = usePopupInClosableContext(BoardMembershipsStep);
+  const CardMembershipsPopup = usePopupInClosableContext(CardMembershipsStep);
   const LabelsPopup = usePopupInClosableContext(LabelsStep);
   const ListsPopup = usePopupInClosableContext(ListsStep);
   const EditDueDatePopup = usePopupInClosableContext(EditDueDateStep);
@@ -349,20 +349,20 @@ const ProjectContent = React.memo(() => {
                   {userIds.map((userId) => (
                     <span key={userId} className={styles.attachment}>
                       {canUseMembers ? (
-                        <BoardMembershipsPopup
+                        <CardMembershipsPopup
                           currentUserIds={userIds}
                           onUserSelect={handleUserSelect}
                           onUserDeselect={handleUserDeselect}
                         >
                           <UserAvatar id={userId} />
-                        </BoardMembershipsPopup>
+                        </CardMembershipsPopup>
                       ) : (
                         <UserAvatar id={userId} />
                       )}
                     </span>
                   ))}
                   {canUseMembers && (
-                    <BoardMembershipsPopup
+                    <CardMembershipsPopup
                       currentUserIds={userIds}
                       onUserSelect={handleUserSelect}
                       onUserDeselect={handleUserDeselect}
@@ -373,7 +373,7 @@ const ProjectContent = React.memo(() => {
                       >
                         <Icon name="add" size="small" className={styles.addAttachment} />
                       </button>
-                    </BoardMembershipsPopup>
+                    </CardMembershipsPopup>
                   )}
                 </div>
               )}
@@ -613,7 +613,7 @@ const ProjectContent = React.memo(() => {
               <div className={styles.actions}>
                 <span className={styles.actionsTitle}>{t('action.addToCard')}</span>
                 {canUseMembers && (
-                  <BoardMembershipsPopup
+                  <CardMembershipsPopup
                     currentUserIds={userIds}
                     onUserSelect={handleUserSelect}
                     onUserDeselect={handleUserDeselect}
@@ -622,7 +622,7 @@ const ProjectContent = React.memo(() => {
                       <Icon name="user outline" className={styles.actionIcon} />
                       {t('common.members')}
                     </Button>
-                  </BoardMembershipsPopup>
+                  </CardMembershipsPopup>
                 )}
                 {canUseLabels && (
                   <LabelsPopup

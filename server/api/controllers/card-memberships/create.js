@@ -8,7 +8,7 @@
  * /cards/{cardId}/card-memberships:
  *   post:
  *     summary: Add user to card
- *     description: Adds a user to a card. Requires board editor permissions.
+ *     description: Adds a user to a card. Requires board editor permissions and auto-adds the user to the board with editor rights if needed.
  *     tags:
  *       - Card Memberships
  *     operationId: createCardMembership
@@ -121,16 +121,36 @@ module.exports = {
       throw Errors.NOT_ENOUGH_RIGHTS;
     }
 
-    const user = await User.qm.getOneById(inputs.userId);
+    const user = await User.qm.getOneById(inputs.userId, {
+      withDeactivated: false,
+    });
 
     if (!user) {
       throw Errors.USER_NOT_FOUND;
     }
 
-    const isBoardMember = await sails.helpers.users.isBoardMember(user.id, board.id);
+    const targetBoardMembership = await BoardMembership.qm.getOneByBoardIdAndUserId(
+      user.id,
+      board.id,
+    );
 
-    if (!isBoardMember) {
-      throw Errors.USER_NOT_FOUND; // Forbidden
+    if (!targetBoardMembership) {
+      try {
+        await sails.helpers.boardMemberships.createOne.with({
+          project,
+          values: {
+            board,
+            user,
+            role: BoardMembership.Roles.EDITOR,
+          },
+          actorUser: currentUser,
+          request: this.req,
+        });
+      } catch (error) {
+        if (error !== 'userAlreadyBoardMember') {
+          throw error;
+        }
+      }
     }
 
     const cardMembership = await sails.helpers.cardMemberships.createOne

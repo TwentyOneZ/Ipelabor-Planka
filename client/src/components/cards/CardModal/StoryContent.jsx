@@ -29,7 +29,7 @@ import Markdown from '../../common/Markdown';
 import EditMarkdown from '../../common/EditMarkdown';
 import ConfirmationStep from '../../common/ConfirmationStep';
 import UserAvatar from '../../users/UserAvatar';
-import BoardMembershipsStep from '../../board-memberships/BoardMembershipsStep';
+import CardMembershipsStep from '../CardMembershipsStep';
 import LabelChip from '../../labels/LabelChip';
 import LabelsStep from '../../labels/LabelsStep';
 import ListsStep from '../../lists/ListsStep';
@@ -276,7 +276,7 @@ const StoryContent = React.memo(() => {
   }, [isEditDescriptionOpened]);
 
   const CreationDetailsPopup = usePopupInClosableContext(CreationDetailsStep);
-  const BoardMembershipsPopup = usePopupInClosableContext(BoardMembershipsStep);
+  const CardMembershipsPopup = usePopupInClosableContext(CardMembershipsStep);
   const LabelsPopup = usePopupInClosableContext(LabelsStep);
   const ListsPopup = usePopupInClosableContext(ListsStep);
   const RepeatCardPopup = usePopupInClosableContext(RepeatCardStep);
@@ -562,7 +562,7 @@ const StoryContent = React.memo(() => {
                   </AddCustomFieldGroupPopup>
                 )}
                 {canUseMembers && (
-                  <BoardMembershipsPopup
+                  <CardMembershipsPopup
                     currentUserIds={userIds}
                     onUserSelect={handleUserSelect}
                     onUserDeselect={handleUserDeselect}
@@ -571,7 +571,7 @@ const StoryContent = React.memo(() => {
                       <Icon name="user outline" className={styles.actionIcon} />
                       {t('common.members')}
                     </Button>
-                  </BoardMembershipsPopup>
+                  </CardMembershipsPopup>
                 )}
               </div>
             )}

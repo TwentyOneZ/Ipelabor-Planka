@@ -21,7 +21,7 @@ import EditStopwatchStep from '../EditStopwatchStep';
 import RepeatCardStep from '../RepeatCardStep';
 import MoveCardStep from '../MoveCardStep';
 import ConfirmationStep from '../../common/ConfirmationStep';
-import BoardMembershipsStep from '../../board-memberships/BoardMembershipsStep';
+import CardMembershipsStep from '../CardMembershipsStep';
 import LabelsStep from '../../labels/LabelsStep';
 
 import styles from './CardActionsStep.module.scss';
@@ -337,7 +337,7 @@ const CardActionsStep = React.memo(({ cardId, defaultStep, onNameEdit, onClose }
     switch (step.type) {
       case StepTypes.MEMBERS:
         return (
-          <BoardMembershipsStep
+          <CardMembershipsStep
             currentUserIds={userIds}
             onUserSelect={handleUserSelect}
             onUserDeselect={handleUserDeselect}

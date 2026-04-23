@@ -10,6 +10,8 @@ import socket from './socket';
 
 const getUsers = (headers) => socket.get('/users', undefined, headers);
 
+const getBoardUsers = (boardId, headers) => socket.get('/users', { boardId }, headers);
+
 const createUser = (data, headers) => socket.post('/users', data, headers);
 
 /* const getUser = (id, headers) =>
@@ -40,6 +42,7 @@ const deleteUser = (id, headers) => socket.delete(`/users/${id}`, undefined, hea
 
 export default {
   getUsers,
+  getBoardUsers,
   createUser,
   // getUser,
   getCurrentUser,
