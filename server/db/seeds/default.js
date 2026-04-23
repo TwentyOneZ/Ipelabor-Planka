@@ -5,7 +5,7 @@
 
 const bcrypt = require('bcrypt');
 
-const buildData = () => {
+const buildUserData = () => {
   const data = {
     role: 'admin',
     isSsoUser: false,
@@ -25,47 +25,66 @@ const buildData = () => {
   return data;
 };
 
-exports.seed = async (knex) => {
-  const email = process.env.DEFAULT_ADMIN_EMAIL && process.env.DEFAULT_ADMIN_EMAIL.toLowerCase();
+const buildInternalConfigData = () => {
+  const data = {};
+  if (process.env.STORAGE_LIMIT) {
+    data.storageLimit = process.env.STORAGE_LIMIT;
+  }
+  if (process.env.ACTIVE_USERS_LIMIT) {
+    const activeUsersLimit = parseInt(process.env.ACTIVE_USERS_LIMIT, 10);
 
-  if (email) {
-    const data = buildData();
-
-    let userId;
-    try {
-      [{ id: userId }] = await knex('user_account').insert(
-        {
-          ...data,
-          email,
-          subscribeToOwnCards: false,
-          subscribeToCardWhenCommenting: true,
-          turnOffRecentCardHighlighting: false,
-          enableFavoritesByDefault: false,
-          defaultEditorMode: 'wysiwyg',
-          defaultHomeView: 'groupedProjects',
-          defaultProjectsOrder: 'byDefault',
-          createdAt: new Date().toISOString(),
-        },
-        'id',
-      );
-    } catch (error) {
-      /* empty */
-    }
-
-    if (!userId) {
-      await knex('user_account').update(data).where('email', email);
+    if (Number.isInteger(activeUsersLimit)) {
+      data.activeUsersLimit = activeUsersLimit;
     }
   }
 
-  const activeUsersLimit = parseInt(process.env.ACTIVE_USERS_LIMIT, 10);
+  return data;
+};
 
-  if (!Number.isNaN(activeUsersLimit)) {
+exports.seed = async (knex) => {
+  const defaultAdminEmail =
+    process.env.DEFAULT_ADMIN_EMAIL && process.env.DEFAULT_ADMIN_EMAIL.toLowerCase();
+
+  if (defaultAdminEmail) {
+    const userData = buildUserData();
+
+    await knex('user_account')
+      .insert({
+        ...userData,
+        email: defaultAdminEmail,
+        subscribeToOwnCards: false,
+        subscribeToCardWhenCommenting: true,
+        turnOffRecentCardHighlighting: false,
+        enableFavoritesByDefault: true,
+        defaultEditorMode: 'wysiwyg',
+        defaultHomeView: 'groupedProjects',
+        defaultProjectsOrder: 'byDefault',
+        createdAt: new Date().toISOString(),
+      })
+      .onConflict('email')
+      .merge(userData);
+  }
+
+  const internalConfigData = buildInternalConfigData();
+
+  let activeUsersLimit;
+  if (Object.keys(internalConfigData).length > 0) {
+    [{ active_users_limit: activeUsersLimit }] = await knex('internal_config')
+      .update(internalConfigData)
+      .returning('active_users_limit');
+  } else {
+    ({ active_users_limit: activeUsersLimit } = await knex('internal_config')
+      .select('active_users_limit')
+      .first());
+  }
+
+  if (Number.isInteger(activeUsersLimit)) {
     let orderByQuery;
     let orderByQueryValues;
 
-    if (email) {
+    if (defaultAdminEmail) {
       orderByQuery = 'CASE WHEN email = ? THEN 0 WHEN role = ? THEN 1 ELSE 2 END';
-      orderByQueryValues = [email, 'admin'];
+      orderByQueryValues = [defaultAdminEmail, 'admin'];
     } else {
       orderByQuery = 'CASE WHEN role = ? THEN 0 ELSE 1 END';
       orderByQueryValues = 'admin';

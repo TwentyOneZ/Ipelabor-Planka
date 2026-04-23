@@ -22,6 +22,9 @@ services:
       # - MAX_UPLOAD_FILE_SIZE=
       # - TOKEN_EXPIRES_IN=365 # In days
 
+      # - STORAGE_LIMIT=
+      # - ACTIVE_USERS_LIMIT=
+
       # related: https://github.com/knex/knex/issues/2354
       # As knex does not pass query parameters from the connection string,
       # we have to use environment variables in order to pass the desired values, e.g.
@@ -32,21 +35,18 @@ services:
 
       # The default application language used as a fallback when a user's language is not set.
       # This language is also used for per-board notifications.
-      # - DEFAULT_LANGUAGE=en-US
-
-      # Do not comment out DEFAULT_ADMIN_EMAIL if you want to prevent this user from being edited/deleted
-      # - DEFAULT_ADMIN_EMAIL=demo@demo.demo
-      # - DEFAULT_ADMIN_PASSWORD=demo
-      # - DEFAULT_ADMIN_NAME=Demo Demo
-      # - DEFAULT_ADMIN_USERNAME=demo
-
-      # - INTERNAL_ACCESS_TOKEN=
-      # - STORAGE_LIMIT=
-      # - ACTIVE_USERS_LIMIT=
+      - DEFAULT_LANGUAGE=pt-BR
 
       # Set to true to show more detailed authentication error messages.
       # It should not be enabled without a rate limiter for security reasons.
       # - SHOW_DETAILED_AUTH_ERRORS=false
+
+      # All outgoing HTTP requests (SMTP, webhooks, Apprise notifications, favicon fetching, etc.)
+      # will be sent through this proxy if set.
+      # - OUTGOING_PROXY=http://proxy:3128
+
+      # Set to true to expose the Swagger specification at /swagger.json
+      # - SWAGGER_EXPOSED=false
 
       # - S3_ENDPOINT=
       # - S3_REGION=
@@ -54,6 +54,7 @@ services:
       # - S3_SECRET_ACCESS_KEY=
       # - S3_BUCKET=
       # - S3_FORCE_PATH_STYLE=true
+      # - S3_REQUEST_CHECKSUM_CALCULATION=
 
       # - OIDC_ISSUER=
       # - OIDC_CLIENT_ID=
@@ -75,17 +76,29 @@ services:
       # - OIDC_IGNORE_USERNAME=true
       # - OIDC_IGNORE_ROLES=true
       # - OIDC_ENFORCED=true
+      # - OIDC_TIMEOUT=3500
+      # - OIDC_DEBUG=true
+
+      # 📝 Configuração de administrador padrão do Planka (Recomendado para primeiro acesso)
+      - DEFAULT_ADMIN_EMAIL=admin@example.com
+      - DEFAULT_ADMIN_PASSWORD=change-me
+      - DEFAULT_ADMIN_NAME=Administrator
+      - DEFAULT_ADMIN_USERNAME=admin
+      # Outras configurações opcionais
+      # - LOG_LEVEL=warn
 
       # Email Notifications (https://nodemailer.com/smtp/)
       # These values override and disable configuration in the UI if set.
-      # - SMTP_HOST=
-      # - SMTP_PORT=587
-      # - SMTP_NAME=
-      # - SMTP_SECURE=true
-      # - SMTP_TLS_REJECT_UNAUTHORIZED=false
-      # - SMTP_USER=
-      # - SMTP_PASSWORD=
-      # - SMTP_FROM="Demo Demo" <demo@demo.demo>
+      - SMTP_HOST=smtp.example.com
+      - SMTP_PORT=465
+      - SMTP_NAME=Administrator
+      - SMTP_SECURE=true
+      - SMTP_TLS_REJECT_UNAUTHORIZED=false
+      - SMTP_USER=admin@example.com
+      - SMTP_PASSWORD=change-me
+      # Optionally store in secrets - then SMTP_PASSWORD should not be set
+      # - SMTP_PASSWORD__FILE=/run/secrets/smtp_password
+      - SMTP_FROM="Administrator" <admin@example.com>
 
       # Using Gravatar directly exposes user IPs and hashed emails to a third party (GDPR risk).
       # Use a proxy you control for privacy, or leave commented out or empty to disable.
@@ -103,6 +116,8 @@ services:
       - ./client:/app
     ports:
       - 3000:3000
+    environment:
+      - PROXY_TARGET=http://planka-server:1337
 
   postgres:
     image: postgres:16-alpine

@@ -5,12 +5,14 @@
 
 import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
+import { Link } from 'react-router';
 import { useSelector } from 'react-redux';
 import { useTranslation, Trans } from 'react-i18next';
 import { Comment } from 'semantic-ui-react';
 
 import selectors from '../../../selectors';
 import { isUserStatic } from '../../../utils/record-helpers';
+import Paths from '../../../constants/Paths';
 import { ActivityTypes } from '../../../constants/Enums';
 import TimeAgo from '../../common/TimeAgo';
 import UserAvatar from '../../users/UserAvatar';
@@ -38,7 +40,24 @@ const Item = React.memo(({ id }) => {
       const { list } = activity.data;
       const listName = list.name || t(`common.${list.type}`);
 
-      contentNode = (
+      contentNode = activity.data.sourceCard ? (
+        <Trans
+          i18nKey="common.userCopiedThisCardFromCardToList"
+          values={{
+            user: userName,
+            sourceCard: activity.data.sourceCard.name,
+            list: listName,
+          }}
+        >
+          <span className={styles.author}>{userName}</span>
+          {' copied this card from '}
+          <Link to={Paths.CARDS.replace(':id', activity.data.sourceCard.id)}>
+            {activity.data.sourceCard.name}
+          </Link>
+          {' to '}
+          {listName}
+        </Trans>
+      ) : (
         <Trans
           i18nKey="common.userAddedThisCardToList"
           values={{

@@ -7,6 +7,7 @@ import React, { useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import { shallowEqual, useDispatch, useSelector } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { Icon } from 'semantic-ui-react';
 
 import selectors from '../../../selectors';
@@ -17,6 +18,7 @@ import { BoardMembershipRoles, BoardViews } from '../../../constants/Enums';
 import TaskList from './TaskList';
 import DueDateChip from '../DueDateChip';
 import StopwatchChip from '../StopwatchChip';
+import TimeAgo from '../../common/TimeAgo';
 import UserAvatar from '../../users/UserAvatar';
 import LabelChip from '../../labels/LabelChip';
 import CustomFieldValueChip from '../../custom-field-values/CustomFieldValueChip';
@@ -75,12 +77,13 @@ const ProjectContent = React.memo(({ cardId }) => {
     return attachment && attachment.data.thumbnailUrls.outside360;
   });
 
-  const { listName, withCreator } = useSelector((state) => {
+  const { listName, withCreator, withAge } = useSelector((state) => {
     const board = selectors.selectCurrentBoard(state);
 
     return {
       listName: list.name && (board.view === BoardViews.KANBAN ? null : list.name),
       withCreator: board.alwaysDisplayCardCreator,
+      withAge: board.displayCardAges,
     };
   }, shallowEqual);
 
@@ -94,6 +97,7 @@ const ProjectContent = React.memo(({ cardId }) => {
   });
 
   const dispatch = useDispatch();
+  const [t] = useTranslation();
 
   const handleToggleStopwatchClick = useCallback(
     (event) => {
@@ -114,7 +118,9 @@ const ProjectContent = React.memo(({ cardId }) => {
     card.description ||
     card.dueDate ||
     card.stopwatch ||
+    card.repeatNextAt ||
     card.commentsTotal > 0 ||
+    withAge ||
     attachmentsTotal > 0 ||
     notificationsTotal > 0 ||
     listName;
@@ -195,6 +201,17 @@ const ProjectContent = React.memo(({ cardId }) => {
               />
             </span>
           )}
+          {card.repeatNextAt && (
+            <span className={classNames(styles.attachment, styles.attachmentLeft)}>
+              <span className={styles.attachmentContent}>
+                <Icon name="repeat" />
+                {t('format:longDate', {
+                  value: card.repeatNextAt,
+                  postProcess: 'formatDate',
+                })}
+              </span>
+            </span>
+          )}
           {card.stopwatch && (
             <span className={classNames(styles.attachment, styles.attachmentLeft)}>
               <StopwatchChip
@@ -233,6 +250,14 @@ const ProjectContent = React.memo(({ cardId }) => {
               <span className={styles.attachmentContent}>
                 <Icon name="comment outline" />
                 {card.commentsTotal}
+              </span>
+            </span>
+          )}
+          {withAge && card.createdAt && (
+            <span className={classNames(styles.attachment, styles.attachmentLeft)}>
+              <span className={styles.attachmentContent}>
+                <Icon name="history" />
+                <TimeAgo date={card.createdAt} />
               </span>
             </span>
           )}

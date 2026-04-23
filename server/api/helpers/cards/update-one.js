@@ -42,6 +42,7 @@ module.exports = {
     boardInValuesMustBelongToProject: {},
     listMustBeInValues: {},
     listInValuesMustBelongToBoard: {},
+    repeatListMustBeInValues: {},
     coverAttachmentInValuesMustContainImage: {},
   },
 
@@ -98,8 +99,33 @@ module.exports = {
         throw 'coverAttachmentInValuesMustContainImage';
       }
 
-      values.coverAttachmentId = values.coverAttachment.id;
+      if (values.coverAttachment.id === inputs.record.coverAttachmentId) {
+        delete values.coverAttachment;
+      } else {
+        values.coverAttachmentId = values.coverAttachment.id;
+      }
     }
+
+    if (values.board) {
+      values.repeatRule = null;
+      values.repeatListId = null;
+      values.repeatNextAt = null;
+    } else if (!_.isUndefined(values.repeatRule)) {
+      if (_.isNull(values.repeatRule)) {
+        values.repeatListId = null;
+        values.repeatNextAt = null;
+      } else {
+        if (!values.repeatList) {
+          throw 'repeatListMustBeInValues';
+        }
+
+        values.repeatRule = sails.helpers.cards.normalizeRepeatRule(values.repeatRule);
+        values.repeatListId = values.repeatList.id;
+        values.repeatNextAt = sails.helpers.cards.calculateNextRepeatAt(values.repeatRule);
+      }
+    }
+
+    delete values.repeatList;
 
     const dueDate = _.isUndefined(values.dueDate) ? inputs.record.dueDate : values.dueDate;
 
@@ -289,9 +315,14 @@ module.exports = {
           inputs.request,
         );
 
-        sails.sockets.broadcast(`board:${card.boardId}`, 'cardUpdate', {
-          item: card,
-        });
+        sails.sockets.broadcast(
+          `board:${card.boardId}`,
+          'cardUpdate',
+          {
+            item: card,
+          },
+          inputs.request,
+        );
 
         // TODO: add transfer action
       } else {

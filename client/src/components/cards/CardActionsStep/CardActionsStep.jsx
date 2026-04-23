@@ -18,6 +18,7 @@ import { BoardMembershipRoles, CardTypes, ListTypes } from '../../../constants/E
 import SelectCardTypeStep from '../SelectCardTypeStep';
 import EditDueDateStep from '../EditDueDateStep';
 import EditStopwatchStep from '../EditStopwatchStep';
+import RepeatCardStep from '../RepeatCardStep';
 import MoveCardStep from '../MoveCardStep';
 import ConfirmationStep from '../../common/ConfirmationStep';
 import BoardMembershipsStep from '../../board-memberships/BoardMembershipsStep';
@@ -31,6 +32,7 @@ const StepTypes = {
   EDIT_TYPE: 'EDIT_TYPE',
   EDIT_DUE_DATE: 'EDIT_DUE_DATE',
   EDIT_STOPWATCH: 'EDIT_STOPWATCH',
+  REPEAT: 'REPEAT',
   MOVE: 'MOVE',
   ARCHIVE: 'ARCHIVE',
   DELETE: 'DELETE',
@@ -60,6 +62,9 @@ const CardActionsStep = React.memo(({ cardId, defaultStep, onNameEdit, onClose }
     canEditName,
     canEditDueDate,
     canEditStopwatch,
+    canRepeat,
+    canCopy,
+    canCut,
     canDuplicate,
     canMove,
     canRestore,
@@ -68,6 +73,8 @@ const CardActionsStep = React.memo(({ cardId, defaultStep, onNameEdit, onClose }
     canUseMembers,
     canUseLabels,
   } = useSelector((state) => {
+    const isManager = selectors.selectIsCurrentUserManagerForCurrentProject(state);
+
     const boardMembership = selectors.selectCurrentUserMembershipForCurrentBoard(state);
     const isEditor = !!boardMembership && boardMembership.role === BoardMembershipRoles.EDITOR;
 
@@ -77,6 +84,9 @@ const CardActionsStep = React.memo(({ cardId, defaultStep, onNameEdit, onClose }
         canEditName: false,
         canEditDueDate: false,
         canEditStopwatch: false,
+        canRepeat: isEditor,
+        canCopy: isManager || isEditor,
+        canCut: isEditor,
         canDuplicate: false,
         canMove: false,
         canRestore: isEditor,
@@ -92,6 +102,9 @@ const CardActionsStep = React.memo(({ cardId, defaultStep, onNameEdit, onClose }
       canEditName: isEditor,
       canEditDueDate: isEditor,
       canEditStopwatch: isEditor,
+      canRepeat: isEditor,
+      canCopy: isManager || isEditor,
+      canCut: isEditor,
       canDuplicate: isEditor,
       canMove: isEditor,
       canRestore: null,
@@ -106,6 +119,107 @@ const CardActionsStep = React.memo(({ cardId, defaultStep, onNameEdit, onClose }
   const [t] = useTranslation();
   const [step, openStep, handleBack] = useSteps(defaultStep || null);
 
+  const withActionBar = useMemo(() => {
+    let menuItemsTotal = 0;
+    let actionBarItemsTotal = 0;
+
+    if (card.type === CardTypes.PROJECT && canUseMembers) menuItemsTotal += 1;
+    if (canUseLabels) menuItemsTotal += 1;
+    if (card.type !== CardTypes.PROJECT && canUseMembers) menuItemsTotal += 1;
+    if (card.type === CardTypes.PROJECT && canEditDueDate) menuItemsTotal += 1;
+    if (card.type === CardTypes.PROJECT && canEditStopwatch) menuItemsTotal += 1;
+    if (canRepeat) menuItemsTotal += 1;
+    if (canEditName) menuItemsTotal += 1;
+    if (!board.limitCardTypesToDefaultOne && canEditType) menuItemsTotal += 1;
+    if (canDuplicate) menuItemsTotal += 1;
+    if (canMove) menuItemsTotal += 1;
+    if (prevList && canRestore) menuItemsTotal += 1;
+
+    if (canCopy) {
+      menuItemsTotal += 1;
+      actionBarItemsTotal += 1;
+    }
+    if (canCut) {
+      menuItemsTotal += 1;
+      actionBarItemsTotal += 1;
+    }
+    if (list.type !== ListTypes.ARCHIVE && canArchive) {
+      menuItemsTotal += 1;
+      actionBarItemsTotal += 1;
+    }
+    if (canDelete) {
+      menuItemsTotal += 1;
+      actionBarItemsTotal += 1;
+    }
+
+    return menuItemsTotal > 4 && actionBarItemsTotal > 1;
+  }, [
+    board.limitCardTypesToDefaultOne,
+    card.type,
+    list.type,
+    prevList,
+    canEditType,
+    canEditName,
+    canEditDueDate,
+    canEditStopwatch,
+    canRepeat,
+    canCopy,
+    canCut,
+    canDuplicate,
+    canMove,
+    canRestore,
+    canArchive,
+    canDelete,
+    canUseMembers,
+    canUseLabels,
+  ]);
+
+  const hasTopSection = useMemo(() => {
+    return (
+      (card.type === CardTypes.PROJECT && canUseMembers) ||
+      canUseLabels ||
+      (card.type !== CardTypes.PROJECT && canUseMembers) ||
+      (card.type === CardTypes.PROJECT && canEditDueDate) ||
+      (card.type === CardTypes.PROJECT && canEditStopwatch) ||
+      canRepeat ||
+      canEditName ||
+      (!board.limitCardTypesToDefaultOne && canEditType)
+    );
+  }, [
+    board.limitCardTypesToDefaultOne,
+    card.type,
+    canEditType,
+    canEditName,
+    canEditDueDate,
+    canEditStopwatch,
+    canRepeat,
+    canUseMembers,
+    canUseLabels,
+  ]);
+
+  const hasBottomSection = useMemo(() => {
+    return (
+      (canCopy && !withActionBar) ||
+      (canCut && !withActionBar) ||
+      canDuplicate ||
+      canMove ||
+      (prevList && canRestore) ||
+      (list.type !== ListTypes.ARCHIVE && canArchive && !withActionBar) ||
+      (canDelete && !withActionBar)
+    );
+  }, [
+    list.type,
+    prevList,
+    canCopy,
+    canCut,
+    canDuplicate,
+    canMove,
+    canRestore,
+    canArchive,
+    canDelete,
+    withActionBar,
+  ]);
+
   const handleTypeSelect = useCallback(
     (type) => {
       dispatch(
@@ -117,17 +231,20 @@ const CardActionsStep = React.memo(({ cardId, defaultStep, onNameEdit, onClose }
     [cardId, dispatch],
   );
 
-  const handleDuplicateClick = useCallback(() => {
-    dispatch(
-      entryActions.duplicateCard(cardId, {
-        name: `${card.name} (${t('common.copy', {
-          context: 'inline',
-        })})`,
-      }),
-    );
-
+  const handleCopyClick = useCallback(() => {
+    dispatch(entryActions.copyCard(cardId));
     onClose();
-  }, [cardId, onClose, card.name, dispatch, t]);
+  }, [cardId, onClose, dispatch]);
+
+  const handleCutClick = useCallback(() => {
+    dispatch(entryActions.cutCard(cardId));
+    onClose();
+  }, [cardId, onClose, dispatch]);
+
+  const handleDuplicateClick = useCallback(() => {
+    dispatch(entryActions.duplicateCard(cardId));
+    onClose();
+  }, [cardId, onClose, dispatch]);
 
   const handleRestoreClick = useCallback(() => {
     dispatch(entryActions.moveCard(cardId, card.prevListId, undefined, true));
@@ -200,6 +317,10 @@ const CardActionsStep = React.memo(({ cardId, defaultStep, onNameEdit, onClose }
     openStep(StepTypes.EDIT_STOPWATCH);
   }, [openStep]);
 
+  const handleRepeatClick = useCallback(() => {
+    openStep(StepTypes.REPEAT);
+  }, [openStep]);
+
   const handleMoveClick = useCallback(() => {
     openStep(StepTypes.MOVE);
   }, [openStep]);
@@ -249,6 +370,8 @@ const CardActionsStep = React.memo(({ cardId, defaultStep, onNameEdit, onClose }
         return <EditDueDateStep cardId={cardId} onBack={handleBack} onClose={onClose} />;
       case StepTypes.EDIT_STOPWATCH:
         return <EditStopwatchStep cardId={cardId} onBack={handleBack} onClose={onClose} />;
+      case StepTypes.REPEAT:
+        return <RepeatCardStep cardId={cardId} onBack={handleBack} onClose={onClose} />;
       case StepTypes.MOVE:
         return <MoveCardStep id={cardId} onBack={handleBack} onClose={onClose} />;
       case StepTypes.ARCHIVE:
@@ -288,22 +411,6 @@ const CardActionsStep = React.memo(({ cardId, defaultStep, onNameEdit, onClose }
       </Popup.Header>
       <Popup.Content>
         <Menu secondary vertical className={styles.menu}>
-          {canEditName && (
-            <Menu.Item className={styles.menuItem} onClick={handleEditNameClick}>
-              <Icon name="edit outline" className={styles.menuItemIcon} />
-              {t('action.editTitle', {
-                context: 'title',
-              })}
-            </Menu.Item>
-          )}
-          {!board.limitCardTypesToDefaultOne && canEditType && (
-            <Menu.Item className={styles.menuItem} onClick={handleEditTypeClick}>
-              <Icon name="map outline" className={styles.menuItemIcon} />
-              {t('action.editType', {
-                context: 'title',
-              })}
-            </Menu.Item>
-          )}
           {card.type === CardTypes.PROJECT && canUseMembers && (
             <Menu.Item className={styles.menuItem} onClick={handleMembersClick}>
               <Icon name="user outline" className={styles.menuItemIcon} />
@@ -320,7 +427,7 @@ const CardActionsStep = React.memo(({ cardId, defaultStep, onNameEdit, onClose }
               })}
             </Menu.Item>
           )}
-          {card.type === CardTypes.STORY && canUseMembers && (
+          {card.type !== CardTypes.PROJECT && canUseMembers && (
             <Menu.Item className={styles.menuItem} onClick={handleMembersClick}>
               <Icon name="user outline" className={styles.menuItemIcon} />
               {t('common.members', {
@@ -340,6 +447,47 @@ const CardActionsStep = React.memo(({ cardId, defaultStep, onNameEdit, onClose }
             <Menu.Item className={styles.menuItem} onClick={handleEditStopwatchClick}>
               <Icon name="clock outline" className={styles.menuItemIcon} />
               {t('action.editStopwatch', {
+                context: 'title',
+              })}
+            </Menu.Item>
+          )}
+          {canRepeat && (
+            <Menu.Item className={styles.menuItem} onClick={handleRepeatClick}>
+              <Icon name="repeat" className={styles.menuItemIcon} />
+              {t('action.repeat', {
+                context: 'title',
+              })}
+            </Menu.Item>
+          )}
+          {canEditName && (
+            <Menu.Item className={styles.menuItem} onClick={handleEditNameClick}>
+              <Icon name="edit outline" className={styles.menuItemIcon} />
+              {t('action.editTitle', {
+                context: 'title',
+              })}
+            </Menu.Item>
+          )}
+          {!board.limitCardTypesToDefaultOne && canEditType && (
+            <Menu.Item className={styles.menuItem} onClick={handleEditTypeClick}>
+              <Icon name="map outline" className={styles.menuItemIcon} />
+              {t('action.editType', {
+                context: 'title',
+              })}
+            </Menu.Item>
+          )}
+          {hasTopSection && hasBottomSection && <hr className={styles.divider} />}
+          {canCopy && !withActionBar && (
+            <Menu.Item className={styles.menuItem} onClick={handleCopyClick}>
+              <Icon name="copy outline" className={styles.menuItemIcon} />
+              {t('action.copyCard', {
+                context: 'title',
+              })}
+            </Menu.Item>
+          )}
+          {canCut && !withActionBar && (
+            <Menu.Item className={styles.menuItem} onClick={handleCutClick}>
+              <Icon name="cut" className={styles.menuItemIcon} />
+              {t('action.cutCard', {
                 context: 'title',
               })}
             </Menu.Item>
@@ -369,7 +517,7 @@ const CardActionsStep = React.memo(({ cardId, defaultStep, onNameEdit, onClose }
               })}
             </Menu.Item>
           )}
-          {list.type !== ListTypes.ARCHIVE && canArchive && (
+          {list.type !== ListTypes.ARCHIVE && canArchive && !withActionBar && (
             <Menu.Item className={styles.menuItem} onClick={handleArchiveClick}>
               <Icon name="folder open outline" className={styles.menuItemIcon} />
               {t('action.archiveCard', {
@@ -377,7 +525,7 @@ const CardActionsStep = React.memo(({ cardId, defaultStep, onNameEdit, onClose }
               })}
             </Menu.Item>
           )}
-          {canDelete && (
+          {canDelete && !withActionBar && (
             <Menu.Item className={styles.menuItem} onClick={handleDeleteClick}>
               <Icon name="trash alternate outline" className={styles.menuItemIcon} />
               {isInTrashList
@@ -388,6 +536,69 @@ const CardActionsStep = React.memo(({ cardId, defaultStep, onNameEdit, onClose }
                     context: 'title',
                   })}
             </Menu.Item>
+          )}
+          {withActionBar && (
+            <>
+              <hr className={styles.divider} />
+              <div className={styles.actionBar}>
+                {canCopy && (
+                  /* eslint-disable-next-line jsx-a11y/anchor-is-valid,
+                                              jsx-a11y/click-events-have-key-events,
+                                              jsx-a11y/no-static-element-interactions */
+                  <a className={styles.actionBarItem} onClick={handleCopyClick}>
+                    <Icon fitted name="copy outline" />
+                    <span className={styles.actionBarItemText}>
+                      {t('action.copy', {
+                        context: 'title',
+                      })}
+                    </span>
+                  </a>
+                )}
+                {canCut && (
+                  /* eslint-disable-next-line jsx-a11y/anchor-is-valid,
+                                              jsx-a11y/click-events-have-key-events,
+                                              jsx-a11y/no-static-element-interactions */
+                  <a className={styles.actionBarItem} onClick={handleCutClick}>
+                    <Icon fitted name="cut" />
+                    <span className={styles.actionBarItemText}>
+                      {t('action.cut', {
+                        context: 'title',
+                      })}
+                    </span>
+                  </a>
+                )}
+                {list.type !== ListTypes.ARCHIVE && canArchive && (
+                  /* eslint-disable-next-line jsx-a11y/anchor-is-valid,
+                                              jsx-a11y/click-events-have-key-events,
+                                              jsx-a11y/no-static-element-interactions */
+                  <a className={styles.actionBarItem} onClick={handleArchiveClick}>
+                    <Icon fitted name="archive" />
+                    <span className={styles.actionBarItemText}>
+                      {t('action.archive', {
+                        context: 'title',
+                      })}
+                    </span>
+                  </a>
+                )}
+                {canDelete && (
+                  /* eslint-disable-next-line jsx-a11y/anchor-is-valid,
+                                              jsx-a11y/click-events-have-key-events,
+                                              jsx-a11y/no-static-element-interactions */
+                  <a className={styles.actionBarItem} onClick={handleDeleteClick}>
+                    <Icon fitted name="trash alternate outline" />
+                    <span className={styles.actionBarItemText}>
+                      {isInTrashList
+                        ? t('action.deleteForever', {
+                            context: 'title',
+                          })
+                        : t('action.delete', {
+                            context: 'title',
+                          })}
+                    </span>
+                  </a>
+                )}
+              </div>
+            </>
           )}
         </Menu>
       </Popup.Content>
