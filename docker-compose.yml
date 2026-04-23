@@ -1,15 +1,22 @@
 version: '3.8'
 
 services:
-  # 1. SERVICO DE TUNELAMENTO SSH DEDICADO (mantido para o ambiente Ipelabor)
+  # 1. Dedicated SSH tunnel service for the Ipelabor environment
   ssh_tunnel:
     build:
       context: .
       dockerfile: dockerfile.ssh
     container_name: ssh_tunnel_planka
     restart: unless-stopped
-    # logging:
-    #   driver: "none"
+    volumes:
+      - ${SSH_PRIVATE_KEY_PATH:-./ipelabor.key}:/run/ssh-keys/ipelabor.key:ro
+    environment:
+      SSH_REMOTE_USER: ${SSH_REMOTE_USER}
+      SSH_REMOTE_HOST: ${SSH_REMOTE_HOST}
+      SSH_REMOTE_PORT: ${SSH_REMOTE_PORT:-22}
+      SSH_TUNNEL_REMOTE_PORT: ${SSH_TUNNEL_REMOTE_PORT:-7002}
+      SSH_TUNNEL_TARGET_HOST: ${SSH_TUNNEL_TARGET_HOST:-planka}
+      SSH_TUNNEL_TARGET_PORT: ${SSH_TUNNEL_TARGET_PORT:-1337}
 
   planka:
     container_name: planka
@@ -32,33 +39,21 @@ services:
       - 7002:1337
 
     environment:
-      - BASE_URL=http://example.com:7002
-
-      # DATABASE_URL apontando para o servidor externo
-      - DATABASE_URL=postgresql://user:password@db.example.com:5432/planka
-
-      - SECRET_KEY=change-me
-
-      # Configuracao de administrador padrao do Planka
-      - DEFAULT_ADMIN_EMAIL=admin@example.com
-      - DEFAULT_ADMIN_PASSWORD=change-me
-      - DEFAULT_ADMIN_NAME=Administrator
-      - DEFAULT_ADMIN_USERNAME=admin
-      # Outras configuracoes opcionais
-      # - LOG_LEVEL=warn
-
-      # Email Notifications (https://nodemailer.com/smtp/)
-      # These values override and disable configuration in the UI if set.
-      - SMTP_HOST=smtp.example.com
-      - SMTP_PORT=465
-      - SMTP_NAME=Administrator
-      - SMTP_SECURE=true
-      - SMTP_TLS_REJECT_UNAUTHORIZED=false
-      - SMTP_USER=admin@example.com
-      - SMTP_PASSWORD=change-me
-      # Optionally store in secrets - then SMTP_PASSWORD should not be set
-      # - SMTP_PASSWORD__FILE=/run/secrets/smtp_password
-      - SMTP_FROM="Administrator" <admin@example.com>
+      BASE_URL: ${PLANKA_PROD_BASE_URL}
+      DATABASE_URL: ${PLANKA_PROD_DATABASE_URL}
+      SECRET_KEY: ${PLANKA_PROD_SECRET_KEY}
+      DEFAULT_ADMIN_EMAIL: ${PLANKA_DEFAULT_ADMIN_EMAIL}
+      DEFAULT_ADMIN_PASSWORD: ${PLANKA_DEFAULT_ADMIN_PASSWORD}
+      DEFAULT_ADMIN_NAME: ${PLANKA_DEFAULT_ADMIN_NAME}
+      DEFAULT_ADMIN_USERNAME: ${PLANKA_DEFAULT_ADMIN_USERNAME}
+      SMTP_HOST: ${PLANKA_SMTP_HOST}
+      SMTP_PORT: ${PLANKA_SMTP_PORT}
+      SMTP_NAME: ${PLANKA_SMTP_NAME}
+      SMTP_SECURE: ${PLANKA_SMTP_SECURE}
+      SMTP_TLS_REJECT_UNAUTHORIZED: ${PLANKA_SMTP_TLS_REJECT_UNAUTHORIZED}
+      SMTP_USER: ${PLANKA_SMTP_USER}
+      SMTP_PASSWORD: ${PLANKA_SMTP_PASSWORD}
+      SMTP_FROM: ${PLANKA_SMTP_FROM}
 
     depends_on:
       ssh_tunnel:

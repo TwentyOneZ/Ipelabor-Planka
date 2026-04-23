@@ -12,9 +12,9 @@ services:
     ports:
       - 1337:1337
     environment:
-      - BASE_URL=http://localhost:1337
-      - DATABASE_URL=postgresql://postgres@postgres/planka
-      - SECRET_KEY=notsecretkey
+      BASE_URL: ${PLANKA_DEV_BASE_URL}
+      DATABASE_URL: ${PLANKA_DEV_DATABASE_URL}
+      SECRET_KEY: ${PLANKA_DEV_SECRET_KEY}
 
       # - LOG_LEVEL=warn
 
@@ -35,7 +35,7 @@ services:
 
       # The default application language used as a fallback when a user's language is not set.
       # This language is also used for per-board notifications.
-      - DEFAULT_LANGUAGE=pt-BR
+      DEFAULT_LANGUAGE: ${PLANKA_DEV_DEFAULT_LANGUAGE}
 
       # Set to true to show more detailed authentication error messages.
       # It should not be enabled without a rate limiter for security reasons.
@@ -79,26 +79,24 @@ services:
       # - OIDC_TIMEOUT=3500
       # - OIDC_DEBUG=true
 
-      # 📝 Configuração de administrador padrão do Planka (Recomendado para primeiro acesso)
-      - DEFAULT_ADMIN_EMAIL=admin@example.com
-      - DEFAULT_ADMIN_PASSWORD=change-me
-      - DEFAULT_ADMIN_NAME=Administrator
-      - DEFAULT_ADMIN_USERNAME=admin
-      # Outras configurações opcionais
-      # - LOG_LEVEL=warn
+      # Default Planka administrator
+      DEFAULT_ADMIN_EMAIL: ${PLANKA_DEFAULT_ADMIN_EMAIL}
+      DEFAULT_ADMIN_PASSWORD: ${PLANKA_DEFAULT_ADMIN_PASSWORD}
+      DEFAULT_ADMIN_NAME: ${PLANKA_DEFAULT_ADMIN_NAME}
+      DEFAULT_ADMIN_USERNAME: ${PLANKA_DEFAULT_ADMIN_USERNAME}
 
       # Email Notifications (https://nodemailer.com/smtp/)
       # These values override and disable configuration in the UI if set.
-      - SMTP_HOST=smtp.example.com
-      - SMTP_PORT=465
-      - SMTP_NAME=Administrator
-      - SMTP_SECURE=true
-      - SMTP_TLS_REJECT_UNAUTHORIZED=false
-      - SMTP_USER=admin@example.com
-      - SMTP_PASSWORD=change-me
+      SMTP_HOST: ${PLANKA_SMTP_HOST}
+      SMTP_PORT: ${PLANKA_SMTP_PORT}
+      SMTP_NAME: ${PLANKA_SMTP_NAME}
+      SMTP_SECURE: ${PLANKA_SMTP_SECURE}
+      SMTP_TLS_REJECT_UNAUTHORIZED: ${PLANKA_SMTP_TLS_REJECT_UNAUTHORIZED}
+      SMTP_USER: ${PLANKA_SMTP_USER}
+      SMTP_PASSWORD: ${PLANKA_SMTP_PASSWORD}
       # Optionally store in secrets - then SMTP_PASSWORD should not be set
       # - SMTP_PASSWORD__FILE=/run/secrets/smtp_password
-      - SMTP_FROM="Administrator" <admin@example.com>
+      SMTP_FROM: ${PLANKA_SMTP_FROM}
 
       # Using Gravatar directly exposes user IPs and hashed emails to a third party (GDPR risk).
       # Use a proxy you control for privacy, or leave commented out or empty to disable.
@@ -117,7 +115,7 @@ services:
     ports:
       - 3000:3000
     environment:
-      - PROXY_TARGET=http://planka-server:1337
+      PROXY_TARGET: ${PLANKA_DEV_PROXY_TARGET}
 
   postgres:
     image: postgres:16-alpine
@@ -125,13 +123,14 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_DB=planka
-      - POSTGRES_HOST_AUTH_METHOD=trust
+      POSTGRES_DB: ${PLANKA_DEV_POSTGRES_DB}
+      POSTGRES_USER: ${PLANKA_DEV_POSTGRES_USER}
+      POSTGRES_HOST_AUTH_METHOD: ${PLANKA_DEV_POSTGRES_HOST_AUTH_METHOD}
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-planka} && psql -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-planka} -c 'SELECT 1'",
+          "pg_isready -U ${PLANKA_DEV_POSTGRES_USER:-postgres} -d ${PLANKA_DEV_POSTGRES_DB:-planka} && psql -U ${PLANKA_DEV_POSTGRES_USER:-postgres} -d ${PLANKA_DEV_POSTGRES_DB:-planka} -c 'SELECT 1'",
         ]
       interval: 3s
       timeout: 5s
