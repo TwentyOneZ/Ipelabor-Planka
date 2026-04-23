@@ -24,6 +24,8 @@ const POPUP_PROPS = {
   position: 'bottom right',
 };
 
+const APP_NAME = 'Ip\u00eaboard';
+
 const Header = React.memo(() => {
   const user = useSelector(selectors.selectCurrentUser);
   const project = useSelector(selectors.selectCurrentProject);
@@ -91,12 +93,13 @@ const Header = React.memo(() => {
 
   const NotificationsPopup = usePopup(NotificationsStep, POPUP_PROPS);
   const UserActionsPopup = usePopup(UserActionsStep, POPUP_PROPS);
+  const title = board ? project?.name : APP_NAME;
 
   return (
     <div className={styles.wrapper}>
       {!project && (
         <Link to={Paths.ROOT} className={classNames(styles.logo, styles.title)}>
-          PLANKA
+          {APP_NAME}
         </Link>
       )}
       <Menu inverted size="large" className={styles.menu}>
@@ -110,7 +113,7 @@ const Header = React.memo(() => {
               <Icon fitted name="arrow left" />
             </Menu.Item>
             <Menu.Item className={classNames(styles.item, styles.title)}>
-              {project.name}
+              {title}
               {canEditProject && (
                 <Button className={styles.editButton} onClick={handleProjectSettingsClick}>
                   <Icon fitted name="pencil" size="small" />

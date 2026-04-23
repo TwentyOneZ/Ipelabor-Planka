@@ -21,6 +21,11 @@ const acceptTerms = (data, headers) => http.post('/access-tokens/accept-terms', 
 const revokePendingToken = (data, headers) =>
   http.post('/access-tokens/revoke-pending-token', data, headers);
 
+const requestPasswordReset = (data, headers) =>
+  http.post('/access-tokens/request-password-reset', data, headers);
+
+const resetPassword = (data, headers) => http.post('/access-tokens/reset-password', data, headers);
+
 const deleteCurrentAccessToken = (headers) => http.delete('/access-tokens/me', undefined, headers);
 
 export default {
@@ -29,5 +34,7 @@ export default {
   debugOidc,
   acceptTerms,
   revokePendingToken,
+  requestPasswordReset,
+  resetPassword,
   deleteCurrentAccessToken,
 };

@@ -32,6 +32,8 @@ function Root({ store, history }) {
           <ToasterProvider toaster={toaster}>
             <Routes>
               <Route path={Paths.LOGIN} element={<Login />} />
+              <Route path={Paths.FORGOT_PASSWORD} element={<Login />} />
+              <Route path={Paths.RESET_PASSWORD} element={<Login />} />
               <Route path={Paths.OIDC_CALLBACK} element={<Login />} />
               <Route path={Paths.ROOT} element={<Core />} />
               <Route path={Paths.PROJECTS} element={<Core />} />

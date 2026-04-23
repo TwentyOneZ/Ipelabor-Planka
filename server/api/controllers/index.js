@@ -17,15 +17,25 @@ const getDevelopmentClientUrl = (req) => {
 };
 
 module.exports = {
-  fn() {
+  exits: {
+    success: {
+      responseType: 'view',
+      viewTemplatePath: 'index',
+    },
+    developmentRedirect: {
+      responseType: 'redirect',
+    },
+  },
+
+  fn(inputs, exits) {
     const viewPath = path.join(sails.config.paths.views, 'index.ejs');
 
     if (fs.existsSync(viewPath)) {
-      return this.res.view('index', {
+      return exits.success({
         basePath: sails.config.custom.baseUrlPath,
       });
     }
 
-    return this.res.redirect(getDevelopmentClientUrl(this.req));
+    return exits.developmentRedirect(getDevelopmentClientUrl(this.req));
   },
 };

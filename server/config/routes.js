@@ -121,6 +121,8 @@ module.exports.routes = {
   'POST /api/access-tokens/debug-oidc': 'access-tokens/debug-oidc',
   'POST /api/access-tokens/accept-terms': 'access-tokens/accept-terms',
   'POST /api/access-tokens/revoke-pending-token': 'access-tokens/revoke-pending-token',
+  'POST /api/access-tokens/request-password-reset': 'access-tokens/request-password-reset',
+  'POST /api/access-tokens/reset-password': 'access-tokens/reset-password',
   'DELETE /api/access-tokens/me': 'access-tokens/delete',
 
   'GET /api/users': 'users/index',

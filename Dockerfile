@@ -44,6 +44,8 @@ RUN python3 -m venv .venv \
   && .venv/bin/pip3 install -r requirements.txt --no-cache-dir \
   && mv .env.sample .env \
   && mv public/index.ejs views \
+  && sed -i 's/\r$//' start.sh \
+  && chmod +x start.sh \
   && npm config set update-notifier false
 
 VOLUME /app/data

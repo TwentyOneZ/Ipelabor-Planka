@@ -1,5 +1,6 @@
 const AccessTokenSteps = {
   ACCEPT_TERMS: 'accept-terms',
+  RESET_PASSWORD: 'reset-password',
 };
 
 const POSITION_GAP = 65536;

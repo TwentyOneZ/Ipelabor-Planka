@@ -7,6 +7,7 @@ import isEmail from 'validator/lib/isEmail';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import classNames from 'classnames';
 import { useDispatch, useSelector } from 'react-redux';
+import { Link } from 'react-router';
 import { useTranslation, Trans } from 'react-i18next';
 import TextareaAutosize from 'react-textarea-autosize';
 import { Button, Divider, Form, Grid, Header, Message, TextArea } from 'semantic-ui-react';
@@ -18,9 +19,9 @@ import entryActions from '../../../entry-actions';
 import { useForm, useNestedRef } from '../../../hooks';
 import { isUsername } from '../../../utils/validator';
 import AccessTokenSteps from '../../../constants/AccessTokenSteps';
+import Config from '../../../constants/Config';
+import Paths from '../../../constants/Paths';
 import TermsModal from './TermsModal';
-
-import logo from '../../../assets/images/logo.png';
 
 import styles from './Content.module.scss';
 
@@ -201,14 +202,8 @@ const Content = React.memo(() => {
           <div className={styles.login}>
             <div className={styles.form}>
               <div className={styles.logoWrapper}>
-                <img src={logo} alt="" className={styles.logo} />
+                <img src={`${Config.BASE_PATH}/assets/ipeboard.png`} alt="" className={styles.logo} />
               </div>
-              <Header
-                as="h1"
-                textAlign="center"
-                content={bootstrap.instanceName || 'PLANKA'}
-                className={styles.formTitle}
-              />
               <Header
                 as="h2"
                 textAlign="center"
@@ -266,6 +261,11 @@ const Content = React.memo(() => {
                       disabled={isSubmitting || isSubmittingWithOidc}
                     />
                   </Form>
+                  <div className={styles.secondaryAction}>
+                    <Link to={Paths.FORGOT_PASSWORD} className={styles.secondaryActionLink}>
+                      {t('action.forgotPassword')}
+                    </Link>
+                  </div>
                   {withOidc && (
                     <Divider horizontal content={t('common.or')} className={styles.divider} />
                   )}

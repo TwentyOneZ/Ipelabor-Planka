@@ -42,11 +42,21 @@ module.exports = {
   },
 
   async fn(inputs) {
+    let user = inputs.user;
     const internalConfig = await InternalConfig.qm.getOneMain();
 
+    if (!user.termsSignature) {
+      const { signature } = await sails.hooks.terms.getPayload(user.language);
+
+      ({ user } = await User.qm.updateOne(user.id, {
+        termsSignature: signature,
+        termsAcceptedAt: new Date().toISOString(),
+      }));
+    }
+
     if (!internalConfig.isInitialized) {
-      if (inputs.user.role === User.Roles.ADMIN) {
-        if (inputs.user.termsSignature) {
+      if (user.role === User.Roles.ADMIN) {
+        if (user.termsSignature) {
           await InternalConfig.qm.updateOneMain({
             isInitialized: true,
           });
@@ -56,7 +66,7 @@ module.exports = {
       }
     }
 
-    if (!sails.hooks.terms.isSignatureValid(inputs.user.termsSignature)) {
+    if (!sails.hooks.terms.isSignatureValid(user.termsSignature)) {
       const { token: pendingToken, payload: pendingTokenPayload } =
         sails.helpers.utils.createJwtToken(
           AccessTokenSteps.ACCEPT_TERMS,
@@ -67,7 +77,7 @@ module.exports = {
       const session = await sails.helpers.sessions.createOne.with({
         values: {
           pendingToken,
-          userId: inputs.user.id,
+          userId: user.id,
           remoteAddress: inputs.remoteAddress,
           userAgent: inputs.request.headers['user-agent'],
         },
@@ -98,7 +108,7 @@ module.exports = {
     const session = await sails.helpers.sessions.createOne.with({
       values: {
         accessToken,
-        userId: inputs.user.id,
+        userId: user.id,
         remoteAddress: inputs.remoteAddress,
         userAgent: inputs.request.headers['user-agent'],
       },

@@ -5,15 +5,31 @@
 
 import React from 'react';
 import { useSelector } from 'react-redux';
+import { useLocation } from 'react-router';
 import { Loader } from 'semantic-ui-react';
 
 import selectors from '../../../selectors';
+import Paths from '../../../constants/Paths';
 import Content from './Content';
+import ForgotPassword from './ForgotPassword';
+import ResetPassword from './ResetPassword';
 
 const Login = React.memo(() => {
   const isInitializing = useSelector(selectors.selectIsInitializing);
+  const { pathname } = useLocation();
 
-  return isInitializing ? <Loader active size="massive" /> : <Content />;
+  if (isInitializing) {
+    return <Loader active size="massive" />;
+  }
+
+  switch (pathname) {
+    case Paths.FORGOT_PASSWORD:
+      return <ForgotPassword />;
+    case Paths.RESET_PASSWORD:
+      return <ResetPassword />;
+    default:
+      return <Content />;
+  }
 });
 
 export default Login;

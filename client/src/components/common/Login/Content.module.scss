@@ -40,11 +40,6 @@
     justify-content: center;
   }
 
-  .formTitle {
-    font-size: 36px;
-    font-weight: bold;
-  }
-
   .formSubtitle {
     font-size: 28px;
     font-weight: normal;
@@ -59,6 +54,14 @@
   .gridItem {
     height: 100%;
     padding: 0;
+  }
+
+  .helperText {
+    color: #4a5568;
+    font-size: 15px;
+    line-height: 1.5;
+    margin: -8px 0 24px;
+    text-align: center;
   }
 
   .inputLabel {
@@ -82,14 +85,30 @@
   }
 
   .logo {
-    max-height: 144px;
-    max-width: 80%;
+    max-height: 220px;
+    max-width: 100%;
   }
 
   .logoWrapper {
     display: flex;
     justify-content: center;
-    margin-bottom: 40px;
+    margin-bottom: 24px;
+  }
+
+  .secondaryAction {
+    margin-top: 16px;
+    text-align: center;
+  }
+
+  .secondaryActionLink {
+    color: #2f6fec;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .secondaryActionLink:hover {
+    color: #1f5ad1;
+    text-decoration: underline;
   }
 
   .poweredBy {

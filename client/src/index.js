@@ -12,5 +12,5 @@ import Root from './components/common/Root';
 
 import './i18n';
 
-const root = ReactDOM.createRoot(document.getElementById('user'));
+const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(React.createElement(Root, { store, history }));
