@@ -10,6 +10,7 @@ import { Button, Divider, Header, Radio, Tab } from 'semantic-ui-react';
 
 import selectors from '../../../../selectors';
 import entryActions from '../../../../entry-actions';
+import UserRoles from '../../../../constants/UserRoles';
 import { usePopupInClosableContext } from '../../../../hooks';
 import EditInformation from './EditInformation';
 import ConfirmationStep from '../../../common/ConfirmationStep';
@@ -23,7 +24,10 @@ const GeneralPane = React.memo(() => {
     (state) => selectors.selectBoardIdsForCurrentProject(state).length > 0,
   );
 
+  const currentUser = useSelector(selectors.selectCurrentUser);
   const canEdit = useSelector(selectors.selectIsCurrentUserManagerForCurrentProject);
+  const isAdmin = currentUser.role === UserRoles.ADMIN;
+  const canDeleteProject = !hasBoards || isAdmin;
 
   const dispatch = useDispatch();
   const [t] = useTranslation();
@@ -79,12 +83,16 @@ const GeneralPane = React.memo(() => {
           <div className={styles.action}>
             <ConfirmationPopup
               title="common.deleteProject"
-              content="common.areYouSureYouWantToDeleteThisProject"
+              content={
+                hasBoards && isAdmin
+                  ? 'common.areYouSureYouWantToDeleteThisProjectWithBoards'
+                  : 'common.areYouSureYouWantToDeleteThisProject'
+              }
               buttonContent="action.deleteProject"
               onConfirm={handleDeleteConfirm}
             >
-              <Button disabled={hasBoards} className={styles.actionButton}>
-                {hasBoards
+              <Button disabled={!canDeleteProject} className={styles.actionButton}>
+                {!canDeleteProject
                   ? t('common.deleteAllBoardsToBeAbleToDeleteThisProject')
                   : t('action.deleteProject', {
                       context: 'title',

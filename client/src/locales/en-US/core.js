@@ -66,6 +66,8 @@ export default {
       areYouSureYouWantToDeleteThisNotificationService:
         'Are you sure you want to delete this notification service?',
       areYouSureYouWantToDeleteThisProject: 'Are you sure you want to delete this project?',
+      areYouSureYouWantToDeleteThisProjectWithBoards:
+        'Are you sure you want to delete this project and all of its boards, cards, attachments, comments, and related data?',
       areYouSureYouWantToDeleteThisTask: 'Are you sure you want to delete this task?',
       areYouSureYouWantToDeleteThisTaskList: 'Are you sure you want to delete this task list?',
       areYouSureYouWantToDeleteThisUser: 'Are you sure you want to delete this user?',

@@ -25,7 +25,7 @@ module.exports = {
   async fn(inputs) {
     const boardsTotal = await sails.helpers.projects.getBoardsTotalById(inputs.record.id);
 
-    if (boardsTotal > 0) {
+    if (boardsTotal > 0 && inputs.actorUser.role !== User.Roles.ADMIN) {
       throw 'mustNotHaveBoards';
     }
 

@@ -1,5 +1,7 @@
 [CmdletBinding()]
 param(
+  [ValidateSet('Full', 'Incremental')]
+  [string]$Mode = 'Full',
   [string]$ComposeFile,
   [string]$EnvFile,
   [string]$LocalBackupRoot,
@@ -117,6 +119,38 @@ function Read-EnvFile {
   return $values
 }
 
+function Save-JsonFile {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Path,
+    [Parameter(Mandatory = $true)]
+    $Value
+  )
+
+  $directory = Split-Path -Path $Path -Parent
+  if ($directory) {
+    New-Item -ItemType Directory -Path $directory -Force | Out-Null
+  }
+
+  $Value | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $Path -Encoding UTF8
+}
+
+function Save-TextLines {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Path,
+    [Parameter(Mandatory = $true)]
+    [string[]]$Lines
+  )
+
+  $directory = Split-Path -Path $Path -Parent
+  if ($directory) {
+    New-Item -ItemType Directory -Path $directory -Force | Out-Null
+  }
+
+  [System.IO.File]::WriteAllLines($Path, $Lines, [System.Text.UTF8Encoding]::new($false))
+}
+
 function Get-ContainerMountMap {
   param(
     [Parameter(Mandatory = $true)]
@@ -203,28 +237,186 @@ function Export-VolumeArchive {
   )
 }
 
+function Get-VolumeFileManifest {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$UtilityImage,
+    [Parameter(Mandatory = $true)]
+    [string]$VolumeName
+  )
+
+  $script = @'
+cd /source
+find . -type f -print0 | while IFS= read -r -d '' file; do
+  rel="${file#./}"
+  size=$(stat -c%s "$file")
+  hash=$(sha256sum "$file" | awk '{print $1}')
+  printf '%s\t%s\t%s\n' "$rel" "$size" "$hash"
+done
+'@
+
+  $output = Invoke-NativeCommand -FilePath 'docker' -Arguments @(
+    'run',
+    '--rm',
+    '-v',
+    ('{0}:/source:ro' -f $VolumeName),
+    $UtilityImage,
+    'sh',
+    '-lc',
+    $script
+  ) -CaptureOutput
+
+  $entries = @()
+
+  foreach ($line in $output) {
+    $text = [string]$line
+
+    if ([string]::IsNullOrWhiteSpace($text)) {
+      continue
+    }
+
+    $parts = $text -split "`t", 3
+    if ($parts.Length -ne 3) {
+      continue
+    }
+
+    $entries += [ordered]@{
+      path = $parts[0]
+      size = [long]$parts[1]
+      sha256 = $parts[2]
+    }
+  }
+
+  return $entries | Sort-Object path
+}
+
+function Convert-ManifestToLookup {
+  param(
+    [Parameter(Mandatory = $true)]
+    [Object[]]$Entries
+  )
+
+  $lookup = @{}
+
+  foreach ($entry in $Entries) {
+    $lookup[$entry.path] = $entry
+  }
+
+  return $lookup
+}
+
+function Export-VolumeDeltaArchive {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$UtilityImage,
+    [Parameter(Mandatory = $true)]
+    [string]$VolumeName,
+    [Parameter(Mandatory = $true)]
+    [string[]]$RelativePaths,
+    [Parameter(Mandatory = $true)]
+    [string]$ArchivePathOnHost
+  )
+
+  $archiveDirectory = Split-Path -Path $ArchivePathOnHost -Parent
+  $archiveName = Split-Path -Path $ArchivePathOnHost -Leaf
+  $listRoot = Join-Path $archiveDirectory '_lists'
+  New-Item -ItemType Directory -Path $listRoot -Force | Out-Null
+
+  $listPath = Join-Path $listRoot ([System.IO.Path]::GetFileNameWithoutExtension($archiveName) + '.txt')
+  Save-TextLines -Path $listPath -Lines $RelativePaths
+
+  try {
+    Invoke-NativeCommand -FilePath 'docker' -Arguments @(
+      'run',
+      '--rm',
+      '-v',
+      ('{0}:/source:ro' -f $VolumeName),
+      '--mount',
+      ('type=bind,source={0},target=/backup' -f $archiveDirectory),
+      '--mount',
+      ('type=bind,source={0},target=/lists,readonly' -f $listRoot),
+      $UtilityImage,
+      'sh',
+      '-lc',
+      ('if [ -s "/lists/{0}" ]; then tar czf "/backup/{1}" -C /source -T "/lists/{0}"; else tar czf "/backup/{1}" -T /dev/null; fi' -f ([System.IO.Path]::GetFileName($listPath)), $archiveName)
+    )
+  } finally {
+    if (Test-Path -LiteralPath $listPath) {
+      Remove-Item -LiteralPath $listPath -Force
+    }
+  }
+}
+
+function Load-FullState {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$StateFilePath
+  )
+
+  if (!(Test-Path -LiteralPath $StateFilePath)) {
+    throw 'No full backup baseline found. Run a full backup first.'
+  }
+
+  return Get-Content -LiteralPath $StateFilePath -Raw | ConvertFrom-Json
+}
+
+function Remove-ExpiredArchives {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$ArchiveRoot,
+    [int]$RetentionMonths = 2
+  )
+
+  $cutoff = (Get-Date).AddMonths(-$RetentionMonths)
+  $expiredFiles = Get-ChildItem -LiteralPath $ArchiveRoot -File -Filter 'planka-*.tgz' -ErrorAction SilentlyContinue |
+    Where-Object { $_.LastWriteTime -lt $cutoff }
+
+  foreach ($file in $expiredFiles) {
+    Write-Log "Removing expired backup $($file.FullName)"
+    Remove-Item -LiteralPath $file.FullName -Force
+  }
+}
+
 $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$backupName = "planka-backup-$timestamp"
+$backupTypeToken = if ($Mode -eq 'Full') { 'full' } else { 'incremental' }
+$backupName = "planka-$backupTypeToken-$timestamp"
 $workingRoot = Join-Path $LocalBackupRoot 'working'
 $logRoot = Join-Path $LocalBackupRoot 'logs'
+$stateRoot = Join-Path $LocalBackupRoot 'state'
+$latestFullStatePath = Join-Path $stateRoot 'latest-full.json'
+$latestFullManifestRoot = Join-Path $stateRoot 'latest-full-manifests'
 $runRoot = Join-Path $workingRoot $backupName
 $databaseRoot = Join-Path $runRoot 'database'
 $volumesRoot = Join-Path $runRoot 'volumes'
 $configRoot = Join-Path $runRoot 'config'
 $termsSnapshotRoot = Join-Path $runRoot 'terms'
+$manifestsRoot = Join-Path $runRoot 'manifests'
+$volumeManifestRoot = Join-Path $manifestsRoot 'volumes'
 $archiveLocalPath = Join-Path $LocalBackupRoot "$backupName.tgz"
 
 New-Item -ItemType Directory -Path $workingRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
+New-Item -ItemType Directory -Path $stateRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $databaseRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $volumesRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $configRoot -Force | Out-Null
+New-Item -ItemType Directory -Path $volumeManifestRoot -Force | Out-Null
 
 $script:LogFile = Join-Path $logRoot "$backupName.log"
 New-Item -ItemType File -Path $script:LogFile -Force | Out-Null
 
+$volumeDefinitions = @(
+  [ordered]@{ Alias = 'data'; Destination = '/app/data'; FullArchive = 'data.tgz'; DeltaArchive = 'data.delta.tgz'; DeletionsFile = 'data.deleted.txt' }
+  [ordered]@{ Alias = 'favicons'; Destination = '/app/data/protected/favicons'; FullArchive = 'favicons.tgz'; DeltaArchive = 'favicons.delta.tgz'; DeletionsFile = 'favicons.deleted.txt' }
+  [ordered]@{ Alias = 'user-avatars'; Destination = '/app/data/protected/user-avatars'; FullArchive = 'user-avatars.tgz'; DeltaArchive = 'user-avatars.delta.tgz'; DeletionsFile = 'user-avatars.deleted.txt' }
+  [ordered]@{ Alias = 'background-images'; Destination = '/app/data/protected/background-images'; FullArchive = 'background-images.tgz'; DeltaArchive = 'background-images.delta.tgz'; DeletionsFile = 'background-images.deleted.txt' }
+  [ordered]@{ Alias = 'attachments'; Destination = '/app/data/private/attachments'; FullArchive = 'attachments.tgz'; DeltaArchive = 'attachments.delta.tgz'; DeletionsFile = 'attachments.deleted.txt' }
+)
+
+$incrementalSummary = @{}
+
 try {
-  Write-Log "Starting Planka backup in $runRoot"
+  Write-Log "Starting $Mode Planka backup in $runRoot"
 
   if (!(Test-Path -LiteralPath $ComposeFile)) {
     throw "Compose file not found: $ComposeFile"
@@ -249,6 +441,7 @@ try {
 
   $utilityImage = Get-ContainerImage -ContainerName 'postgres_server'
   $plankaMountMap = Get-ContainerMountMap -ContainerName 'planka'
+  $currentVolumeManifests = @{}
 
   $databaseDumpPath = Join-Path $databaseRoot 'planka.dump'
   $databaseDumpInContainer = "/tmp/$backupName.dump"
@@ -281,17 +474,9 @@ try {
     $databaseDumpInContainer
   )
 
-  $volumeDefinitions = @(
-    @{ Destination = '/app/data'; Archive = 'data.tgz' },
-    @{ Destination = '/app/data/protected/favicons'; Archive = 'favicons.tgz' },
-    @{ Destination = '/app/data/protected/user-avatars'; Archive = 'user-avatars.tgz' },
-    @{ Destination = '/app/data/protected/background-images'; Archive = 'background-images.tgz' },
-    @{ Destination = '/app/data/private/attachments'; Archive = 'attachments.tgz' }
-  )
-
   foreach ($volumeDefinition in $volumeDefinitions) {
     $destination = $volumeDefinition.Destination
-    $archiveName = $volumeDefinition.Archive
+    $alias = $volumeDefinition.Alias
     $volumeName = $plankaMountMap[$destination]
 
     if ([string]::IsNullOrWhiteSpace($volumeName)) {
@@ -299,10 +484,64 @@ try {
       continue
     }
 
-    Write-Log "Exporting volume $volumeName from $destination"
-    Export-VolumeArchive -UtilityImage $utilityImage -VolumeName $volumeName -ArchivePathOnHost (
-      Join-Path $volumesRoot $archiveName
+    Write-Log "Building file manifest for $volumeName from $destination"
+    $manifestEntries = @(Get-VolumeFileManifest -UtilityImage $utilityImage -VolumeName $volumeName)
+    $currentVolumeManifests[$alias] = [ordered]@{
+      alias = $alias
+      destination = $destination
+      volume = $volumeName
+      files = $manifestEntries
+    }
+
+    Save-JsonFile -Path (Join-Path $volumeManifestRoot "$alias.json") -Value $currentVolumeManifests[$alias]
+
+    if ($Mode -eq 'Full') {
+      Write-Log "Exporting full volume $volumeName from $destination"
+      Export-VolumeArchive -UtilityImage $utilityImage -VolumeName $volumeName -ArchivePathOnHost (
+        Join-Path $volumesRoot $volumeDefinition.FullArchive
+      )
+
+      continue
+    }
+
+    $fullState = Load-FullState -StateFilePath $latestFullStatePath
+    $baselineManifestPath = Join-Path $latestFullManifestRoot "$alias.json"
+
+    if (!(Test-Path -LiteralPath $baselineManifestPath)) {
+      throw "Missing full baseline manifest for volume alias '$alias'. Run a full backup first."
+    }
+
+    $baselineManifest = Get-Content -LiteralPath $baselineManifestPath -Raw | ConvertFrom-Json
+    $baselineLookup = Convert-ManifestToLookup -Entries @($baselineManifest.files)
+    $currentLookup = Convert-ManifestToLookup -Entries @($manifestEntries)
+    $changedPaths = New-Object System.Collections.Generic.List[string]
+    $deletedPaths = New-Object System.Collections.Generic.List[string]
+
+    foreach ($entry in $manifestEntries) {
+      $baselineEntry = $baselineLookup[$entry.path]
+
+      if ($null -eq $baselineEntry -or $baselineEntry.sha256 -ne $entry.sha256) {
+        $changedPaths.Add($entry.path)
+      }
+    }
+
+    foreach ($baselinePath in $baselineLookup.Keys) {
+      if (!$currentLookup.ContainsKey($baselinePath)) {
+        $deletedPaths.Add($baselinePath)
+      }
+    }
+
+    Write-Log "Exporting incremental volume $volumeName from $destination with $($changedPaths.Count) changed files and $($deletedPaths.Count) deletions"
+
+    Export-VolumeDeltaArchive -UtilityImage $utilityImage -VolumeName $volumeName -RelativePaths $changedPaths.ToArray() -ArchivePathOnHost (
+      Join-Path $volumesRoot $volumeDefinition.DeltaArchive
     )
+
+    Save-TextLines -Path (Join-Path $volumesRoot $volumeDefinition.DeletionsFile) -Lines $deletedPaths.ToArray()
+    $incrementalSummary[$volumeDefinition.Alias] = [ordered]@{
+      changedFileCount = $changedPaths.Count
+      deletedFileCount = $deletedPaths.Count
+    }
   }
 
   Write-Log 'Saving compose and environment snapshots'
@@ -318,7 +557,8 @@ try {
   }
 
   $manifest = [ordered]@{
-    backupVersion = 1
+    backupVersion = 2
+    backupType = $backupTypeToken
     createdAt = (Get-Date).ToString('o')
     machineName = $env:COMPUTERNAME
     composeFile = 'config/docker-compose.yml'
@@ -328,18 +568,53 @@ try {
       database = $envValues['PLANKA_PROD_DATABASE_DB']
       user = $envValues['PLANKA_PROD_DATABASE_USER']
     }
-    volumes = @(
-      [ordered]@{ destination = '/app/data'; file = 'volumes/data.tgz' }
-      [ordered]@{ destination = '/app/data/protected/favicons'; file = 'volumes/favicons.tgz' }
-      [ordered]@{ destination = '/app/data/protected/user-avatars'; file = 'volumes/user-avatars.tgz' }
-      [ordered]@{ destination = '/app/data/protected/background-images'; file = 'volumes/background-images.tgz' }
-      [ordered]@{ destination = '/app/data/private/attachments'; file = 'volumes/attachments.tgz' }
-    )
+    volumes = @()
     includesTerms = (Test-Path -LiteralPath $termsSnapshotRoot)
     destinationRoot = $ArchiveDestinationRoot
   }
 
-  $manifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $runRoot 'manifest.json')
+  if ($Mode -eq 'Incremental') {
+    $fullState = Load-FullState -StateFilePath $latestFullStatePath
+    $manifest.baseFullBackupName = $fullState.backupName
+  }
+
+  foreach ($volumeDefinition in $volumeDefinitions) {
+    $destination = $volumeDefinition.Destination
+    $volumeName = $plankaMountMap[$destination]
+
+    if ([string]::IsNullOrWhiteSpace($volumeName)) {
+      continue
+    }
+
+    if ($Mode -eq 'Full') {
+      $manifest.volumes += [ordered]@{
+        alias = $volumeDefinition.Alias
+        destination = $destination
+        file = ('volumes/{0}' -f $volumeDefinition.FullArchive)
+        mode = 'full'
+        manifestFile = ('manifests/volumes/{0}.json' -f $volumeDefinition.Alias)
+      }
+
+      continue
+    }
+
+    $changedArchivePath = Join-Path $volumesRoot $volumeDefinition.DeltaArchive
+    $deletionsPath = Join-Path $volumesRoot $volumeDefinition.DeletionsFile
+    $summary = $incrementalSummary[$volumeDefinition.Alias]
+
+    $manifest.volumes += [ordered]@{
+      alias = $volumeDefinition.Alias
+      destination = $destination
+      file = ('volumes/{0}' -f $volumeDefinition.DeltaArchive)
+      mode = 'delta'
+      deletionsFile = ('volumes/{0}' -f $volumeDefinition.DeletionsFile)
+      changedFileCount = $summary.changedFileCount
+      deletedFileCount = $summary.deletedFileCount
+      manifestFile = ('manifests/volumes/{0}.json' -f $volumeDefinition.Alias)
+    }
+  }
+
+  Save-JsonFile -Path (Join-Path $runRoot 'manifest.json') -Value $manifest
 
   Write-Log "Creating archive $archiveLocalPath"
   Invoke-NativeCommand -FilePath 'tar.exe' -Arguments @(
@@ -353,7 +628,30 @@ try {
   Write-Log "Moving archive to $ArchiveDestinationRoot"
   New-Item -ItemType Directory -Path $ArchiveDestinationRoot -Force | Out-Null
   $finalArchivePath = Join-Path $ArchiveDestinationRoot ([System.IO.Path]::GetFileName($archiveLocalPath))
-  Move-Item -LiteralPath $archiveLocalPath -Destination $finalArchivePath -Force
+
+  if ([System.IO.Path]::GetFullPath($archiveLocalPath) -ne [System.IO.Path]::GetFullPath($finalArchivePath)) {
+    Move-Item -LiteralPath $archiveLocalPath -Destination $finalArchivePath -Force
+  } else {
+    Write-Log 'Archive destination is the local backup root; keeping archive in place'
+  }
+
+  if ($Mode -eq 'Full') {
+    Write-Log 'Updating full backup baseline state'
+    if (Test-Path -LiteralPath $latestFullManifestRoot) {
+      Remove-Item -LiteralPath $latestFullManifestRoot -Recurse -Force
+    }
+
+    New-Item -ItemType Directory -Path $latestFullManifestRoot -Force | Out-Null
+    Copy-Item -Path (Join-Path $volumeManifestRoot '*') -Destination $latestFullManifestRoot -Recurse -Force
+
+    Save-JsonFile -Path $latestFullStatePath -Value ([ordered]@{
+        backupName = [System.IO.Path]::GetFileName($finalArchivePath)
+        backupPath = $finalArchivePath
+        createdAt = (Get-Date).ToString('o')
+      })
+  }
+
+  Remove-ExpiredArchives -ArchiveRoot $ArchiveDestinationRoot -RetentionMonths 2
 
   Write-Log "Backup completed successfully: $finalArchivePath"
 }

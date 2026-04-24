@@ -209,7 +209,73 @@ function Restore-VolumeArchive {
   )
 }
 
-$resolvedBackupFile = Resolve-Path -LiteralPath $BackupFile
+function Apply-VolumeDelta {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$UtilityImage,
+    [Parameter(Mandatory = $true)]
+    [string]$VolumeName,
+    [Parameter(Mandatory = $true)]
+    [string]$ExtractRoot,
+    [Parameter(Mandatory = $true)]
+    [string]$ArchiveRelativePath,
+    [Parameter(Mandatory = $true)]
+    [string]$DeletionsRelativePath
+  )
+
+  $archiveRelativePathUnix = $ArchiveRelativePath.Replace('\', '/')
+  $deletionsRelativePathUnix = $DeletionsRelativePath.Replace('\', '/')
+
+  Invoke-NativeCommand -FilePath 'docker' -Arguments @(
+    'run',
+    '--rm',
+    '--user',
+    'root',
+    '-v',
+    ('{0}:/target' -f $VolumeName),
+    '--mount',
+    ('type=bind,source={0},target=/restore,readonly' -f $ExtractRoot),
+    $UtilityImage,
+    'sh',
+    '-lc',
+    ('mkdir -p /target && tar xzf "/restore/{0}" -C /target && if [ "{1}" != "" ] && [ -f "/restore/{1}" ]; then cd /target && while IFS= read -r path; do [ -z "$path" ] && continue; rm -rf -- "$path"; done < "/restore/{1}"; fi' -f $archiveRelativePathUnix, $deletionsRelativePathUnix)
+  )
+}
+
+function Extract-BackupArchive {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$ArchivePath,
+    [Parameter(Mandatory = $true)]
+    [string]$DestinationPath
+  )
+
+  New-Item -ItemType Directory -Path $DestinationPath -Force | Out-Null
+
+  Invoke-NativeCommand -FilePath 'tar.exe' -Arguments @(
+    '-xzf',
+    $ArchivePath,
+    '-C',
+    $DestinationPath
+  )
+}
+
+function Get-ManifestFromExtractedBackup {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$ExtractRoot
+  )
+
+  $manifestPath = Join-Path $ExtractRoot 'manifest.json'
+
+  if (!(Test-Path -LiteralPath $manifestPath)) {
+    throw "Invalid backup archive. manifest.json not found in $ExtractRoot"
+  }
+
+  return Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+}
+
+$resolvedBackupFile = (Resolve-Path -LiteralPath $BackupFile).Path
 
 if (!(Test-Path -LiteralPath $ComposeFile)) {
   throw "Compose file not found: $ComposeFile"
@@ -231,25 +297,21 @@ foreach ($requiredKey in @(
 
 $restoreName = 'restore-{0}' -f (Get-Date -Format 'yyyyMMdd-HHmmss')
 $extractRoot = Join-Path $RestoreWorkspace $restoreName
+$requestedExtractRoot = Join-Path $extractRoot 'requested'
+$baseExtractRoot = Join-Path $extractRoot 'base-full'
 
 New-Item -ItemType Directory -Path $extractRoot -Force | Out-Null
 
 try {
   Write-Log "Extracting backup archive $resolvedBackupFile"
-  Invoke-NativeCommand -FilePath 'tar.exe' -Arguments @(
-    '-xzf',
-    $resolvedBackupFile,
-    '-C',
-    $extractRoot
-  )
+  Extract-BackupArchive -ArchivePath $resolvedBackupFile -DestinationPath $requestedExtractRoot
+  $requestedManifest = Get-ManifestFromExtractedBackup -ExtractRoot $requestedExtractRoot
 
-  $manifestPath = Join-Path $extractRoot 'manifest.json'
-
-  if (!(Test-Path -LiteralPath $manifestPath)) {
-    throw "Invalid backup archive. manifest.json not found in $resolvedBackupFile"
+  $requestedBackupType = if ($requestedManifest.backupType) {
+    [string]$requestedManifest.backupType
+  } else {
+    'full'
   }
-
-  $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 
   Write-Log 'Ensuring containers and volumes exist'
   Invoke-NativeCommand -FilePath 'docker' -Arguments @('compose', '-f', $ComposeFile, 'up', '-d', 'postgres_server', 'planka', 'ssh_tunnel')
@@ -258,26 +320,89 @@ try {
   $utilityImage = Get-ContainerImage -ContainerName 'postgres_server'
   $plankaMountMap = Get-ContainerMountMap -ContainerName 'planka'
 
-  foreach ($volumeEntry in $manifest.volumes) {
-    $volumeName = $plankaMountMap[$volumeEntry.destination]
-
-    if ([string]::IsNullOrWhiteSpace($volumeName)) {
-      throw "Unable to find volume mounted at $($volumeEntry.destination)"
+  if ($requestedBackupType -eq 'incremental') {
+    if ([string]::IsNullOrWhiteSpace($requestedManifest.baseFullBackupName)) {
+      throw 'Incremental backup is missing baseFullBackupName in manifest.'
     }
 
-    $archivePath = Join-Path $extractRoot $volumeEntry.file
+    $backupDirectory = Split-Path -Path $resolvedBackupFile -Parent
+    $baseFullArchivePath = Join-Path $backupDirectory $requestedManifest.baseFullBackupName
 
-    if (!(Test-Path -LiteralPath $archivePath)) {
-      throw "Volume archive not found: $archivePath"
+    if (!(Test-Path -LiteralPath $baseFullArchivePath)) {
+      throw "Base full backup not found next to incremental backup: $baseFullArchivePath"
     }
 
-    Write-Log "Restoring volume $volumeName for $($volumeEntry.destination)"
-    Restore-VolumeArchive -UtilityImage $utilityImage -VolumeName $volumeName -ExtractRoot $extractRoot -ArchiveRelativePath $volumeEntry.file
+    Write-Log "Extracting base full backup $baseFullArchivePath"
+    Extract-BackupArchive -ArchivePath $baseFullArchivePath -DestinationPath $baseExtractRoot
+    $baseManifest = Get-ManifestFromExtractedBackup -ExtractRoot $baseExtractRoot
+
+    foreach ($volumeEntry in $baseManifest.volumes) {
+      $volumeName = $plankaMountMap[$volumeEntry.destination]
+
+      if ([string]::IsNullOrWhiteSpace($volumeName)) {
+        throw "Unable to find volume mounted at $($volumeEntry.destination)"
+      }
+
+      $archivePath = Join-Path $baseExtractRoot $volumeEntry.file
+
+      if (!(Test-Path -LiteralPath $archivePath)) {
+        throw "Volume archive not found in base full backup: $archivePath"
+      }
+
+      Write-Log "Restoring base volume $volumeName for $($volumeEntry.destination)"
+      Restore-VolumeArchive -UtilityImage $utilityImage -VolumeName $volumeName -ExtractRoot $baseExtractRoot -ArchiveRelativePath $volumeEntry.file
+    }
+
+    foreach ($volumeEntry in $requestedManifest.volumes) {
+      $volumeName = $plankaMountMap[$volumeEntry.destination]
+
+      if ([string]::IsNullOrWhiteSpace($volumeName)) {
+        throw "Unable to find volume mounted at $($volumeEntry.destination)"
+      }
+
+      $archivePath = Join-Path $requestedExtractRoot $volumeEntry.file
+      $deletionsFile = if ($volumeEntry.PSObject.Properties.Name -contains 'deletionsFile') {
+        [string]$volumeEntry.deletionsFile
+      } else {
+        ''
+      }
+
+      if (!(Test-Path -LiteralPath $archivePath)) {
+        throw "Delta volume archive not found: $archivePath"
+      }
+
+      Write-Log "Applying volume delta for $volumeName at $($volumeEntry.destination)"
+      Apply-VolumeDelta -UtilityImage $utilityImage -VolumeName $volumeName -ExtractRoot $requestedExtractRoot -ArchiveRelativePath $volumeEntry.file -DeletionsRelativePath $deletionsFile
+    }
+  } else {
+    foreach ($volumeEntry in $requestedManifest.volumes) {
+      $volumeName = $plankaMountMap[$volumeEntry.destination]
+
+      if ([string]::IsNullOrWhiteSpace($volumeName)) {
+        throw "Unable to find volume mounted at $($volumeEntry.destination)"
+      }
+
+      $archivePath = Join-Path $requestedExtractRoot $volumeEntry.file
+
+      if (!(Test-Path -LiteralPath $archivePath)) {
+        throw "Volume archive not found: $archivePath"
+      }
+
+      Write-Log "Restoring volume $volumeName for $($volumeEntry.destination)"
+      Restore-VolumeArchive -UtilityImage $utilityImage -VolumeName $volumeName -ExtractRoot $requestedExtractRoot -ArchiveRelativePath $volumeEntry.file
+    }
   }
 
-  $termsSnapshot = Join-Path $extractRoot 'terms'
+  $termsSourceRoot = if (Test-Path -LiteralPath (Join-Path $requestedExtractRoot 'terms')) {
+    $requestedExtractRoot
+  } elseif (Test-Path -LiteralPath (Join-Path $baseExtractRoot 'terms')) {
+    $baseExtractRoot
+  } else {
+    $null
+  }
 
-  if (Test-Path -LiteralPath $termsSnapshot) {
+  if ($termsSourceRoot) {
+    $termsSnapshot = Join-Path $termsSourceRoot 'terms'
     $termsDestination = Join-Path $scriptRoot 'terms'
 
     Write-Log 'Restoring custom terms files'
@@ -294,7 +419,7 @@ try {
   Invoke-NativeCommand -FilePath 'docker' -Arguments @('compose', '-f', $ComposeFile, 'up', '-d', 'postgres_server')
   Wait-ForContainerHealth -ContainerName 'postgres_server'
 
-  $databaseDumpPath = Join-Path $extractRoot $manifest.database.file
+  $databaseDumpPath = Join-Path $requestedExtractRoot $requestedManifest.database.file
   $databaseDumpInContainer = '/tmp/planka-restore.dump'
 
   if (!(Test-Path -LiteralPath $databaseDumpPath)) {

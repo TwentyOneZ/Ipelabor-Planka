@@ -8,7 +8,7 @@
  * /projects/{id}:
  *   delete:
  *     summary: Delete project
- *     description: Deletes a project. The project must not have any boards. Requires project manager permissions.
+ *     description: Deletes a project. Project managers can delete empty projects. Populated projects can only be deleted by project managers who are also admins.
  *     tags:
  *       - Projects
  *     operationId: deleteProject

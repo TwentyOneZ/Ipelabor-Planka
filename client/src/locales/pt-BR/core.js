@@ -71,6 +71,8 @@ export default {
       areYouSureYouWantToDeleteThisNotificationService:
         'Tem certeza de que deseja excluir este serviço de notificação?',
       areYouSureYouWantToDeleteThisProject: 'Tem certeza de que deseja excluir este projeto?',
+      areYouSureYouWantToDeleteThisProjectWithBoards:
+        'Tem certeza de que deseja excluir este projeto e todos os seus quadros, cartões, anexos, comentários e dados relacionados?',
       areYouSureYouWantToDeleteThisTask: 'Tem certeza de que deseja excluir esta tarefa?',
       areYouSureYouWantToDeleteThisTaskList:
         'Tem certeza de que deseja excluir esta lista de tarefas?',
