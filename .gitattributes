@@ -1,1 +1,4 @@
 client/src/lib/custom-ui/styles.css linguist-vendored
+*.sh text eol=lf
+dockerfile* text eol=lf
+Dockerfile* text eol=lf

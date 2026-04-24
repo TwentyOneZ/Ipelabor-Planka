@@ -6,6 +6,7 @@ RUN apk update && \
 RUN mkdir -p /root/.ssh && chmod 700 /root/.ssh
 
 COPY docker/ssh-entrypoint.sh /usr/local/bin/ssh-entrypoint.sh
-RUN chmod +x /usr/local/bin/ssh-entrypoint.sh
+RUN sed -i 's/\r$//' /usr/local/bin/ssh-entrypoint.sh && \
+    chmod +x /usr/local/bin/ssh-entrypoint.sh
 
 ENTRYPOINT ["/usr/local/bin/ssh-entrypoint.sh"]
