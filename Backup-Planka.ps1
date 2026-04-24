@@ -148,7 +148,13 @@ function Save-TextLines {
     New-Item -ItemType Directory -Path $directory -Force | Out-Null
   }
 
-  [System.IO.File]::WriteAllLines($Path, $Lines, [System.Text.UTF8Encoding]::new($false))
+  $content = if ($Lines.Count -gt 0) {
+    (($Lines | ForEach-Object { [string]$_ }) -join "`n") + "`n"
+  } else {
+    ''
+  }
+
+  [System.IO.File]::WriteAllText($Path, $content, [System.Text.UTF8Encoding]::new($false))
 }
 
 function Get-ContainerMountMap {
@@ -245,25 +251,15 @@ function Get-VolumeFileManifest {
     [string]$VolumeName
   )
 
-  $script = @'
-cd /source
-find . -type f -print0 | while IFS= read -r -d '' file; do
-  rel="${file#./}"
-  size=$(stat -c%s "$file")
-  hash=$(sha256sum "$file" | awk '{print $1}')
-  printf '%s\t%s\t%s\n' "$rel" "$size" "$hash"
-done
-'@
-
   $output = Invoke-NativeCommand -FilePath 'docker' -Arguments @(
     'run',
     '--rm',
     '-v',
     ('{0}:/source:ro' -f $VolumeName),
-    $UtilityImage,
+    'alpine',
     'sh',
     '-lc',
-    $script
+    'cd /source && find . -type f | sort | while IFS= read -r file; do rel="${file#./}"; size=$(stat -c%s "$file"); hash=$(sha256sum "$file"); hash=${hash%% *}; printf "%s\t%s\t%s\n" "$rel" "$size" "$hash"; done'
   ) -CaptureOutput
 
   $entries = @()
