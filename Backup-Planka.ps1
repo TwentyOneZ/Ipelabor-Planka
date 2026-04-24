@@ -162,6 +162,7 @@ function Save-NullDelimitedText {
     [Parameter(Mandatory = $true)]
     [string]$Path,
     [Parameter(Mandatory = $true)]
+    [AllowEmptyCollection()]
     [string[]]$Lines
   )
 
@@ -278,16 +279,39 @@ function Get-VolumeFileManifest {
     [string]$VolumeName
   )
 
-  $output = Invoke-NativeCommand -FilePath 'docker' -Arguments @(
-    'run',
-    '--rm',
-    '-v',
-    ('{0}:/source:ro' -f $VolumeName),
-    'alpine',
-    'sh',
-    '-lc',
-    'cd /source && find . -type f -exec sh -c ''for file do rel="${file#./}"; rel_b64=$(printf "%s" "$rel" | base64 | tr -d "\n"); size=$(stat -c%s "$file"); hash=$(sha256sum "$file"); hash=${hash%% *}; printf "%s\t%s\t%s\n" "$rel_b64" "$size" "$hash"; done'' sh {} +'
-  ) -CaptureOutput
+  $manifestScriptRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('planka-manifest-' + [System.Guid]::NewGuid().ToString('N'))
+  $manifestScriptPath = Join-Path $manifestScriptRoot 'manifest.sh'
+
+  Save-TextLines -Path $manifestScriptPath -Lines @(
+    '#!/bin/sh'
+    'set -eu'
+    'cd /source'
+    'find . -type f | while IFS= read -r file; do'
+    '  rel="${file#./}"'
+    '  rel_b64=$(printf "%s" "$rel" | base64 | tr -d "\n")'
+    '  size=$(wc -c < "$file" | tr -d " ")'
+    '  hash=$(sha256sum < "$file" | cut -d " " -f1)'
+    '  printf "%s\t%s\t%s\n" "$rel_b64" "$size" "$hash"'
+    'done'
+  )
+
+  try {
+    $output = Invoke-NativeCommand -FilePath 'docker' -Arguments @(
+      'run',
+      '--rm',
+      '-v',
+      ('{0}:/source:ro' -f $VolumeName),
+      '--mount',
+      ('type=bind,source={0},target=/scripts,readonly' -f $manifestScriptRoot),
+      $UtilityImage,
+      'sh',
+      '/scripts/manifest.sh'
+    ) -CaptureOutput
+  } finally {
+    if (Test-Path -LiteralPath $manifestScriptRoot) {
+      Remove-Item -LiteralPath $manifestScriptRoot -Recurse -Force
+    }
+  }
 
   $entries = @()
 
@@ -316,6 +340,7 @@ function Get-VolumeFileManifest {
 function Convert-ManifestToLookup {
   param(
     [Parameter(Mandatory = $true)]
+    [AllowEmptyCollection()]
     [Object[]]$Entries
   )
 
@@ -335,6 +360,7 @@ function Export-VolumeDeltaArchive {
     [Parameter(Mandatory = $true)]
     [string]$VolumeName,
     [Parameter(Mandatory = $true)]
+    [AllowEmptyCollection()]
     [string[]]$RelativePaths,
     [Parameter(Mandatory = $true)]
     [string]$ArchivePathOnHost
