@@ -68,6 +68,33 @@ function Invoke-NativeCommand {
   }
 }
 
+function Save-NullDelimitedText {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Path,
+    [Parameter(Mandatory = $true)]
+    [string[]]$Lines
+  )
+
+  $directory = Split-Path -Path $Path -Parent
+  if ($directory) {
+    New-Item -ItemType Directory -Path $directory -Force | Out-Null
+  }
+
+  $encoding = [System.Text.UTF8Encoding]::new($false)
+  $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+
+  try {
+    foreach ($line in $Lines) {
+      $bytes = $encoding.GetBytes([string]$line)
+      $stream.Write($bytes, 0, $bytes.Length)
+      $stream.WriteByte(0)
+    }
+  } finally {
+    $stream.Dispose()
+  }
+}
+
 function Read-EnvFile {
   param(
     [Parameter(Mandatory = $true)]
@@ -220,7 +247,9 @@ function Apply-VolumeDelta {
     [Parameter(Mandatory = $true)]
     [string]$ArchiveRelativePath,
     [Parameter(Mandatory = $true)]
-    [string]$DeletionsRelativePath
+    [string]$DeletionsRelativePath,
+    [ValidateSet('plain-lines', 'null-list')]
+    [string]$DeletionsPathFormat = 'plain-lines'
   )
 
   $archiveRelativePathUnix = $ArchiveRelativePath.Replace('\', '/')
@@ -238,7 +267,7 @@ function Apply-VolumeDelta {
     $UtilityImage,
     'sh',
     '-lc',
-    ('mkdir -p /target && tar xzf "/restore/{0}" -C /target && if [ "{1}" != "" ] && [ -f "/restore/{1}" ]; then cd /target && while IFS= read -r path; do [ -z "$path" ] && continue; rm -rf -- "$path"; done < "/restore/{1}"; fi' -f $archiveRelativePathUnix, $deletionsRelativePathUnix)
+    ('mkdir -p /target && tar xzf "/restore/{0}" -C /target && if [ "{1}" != "" ] && [ -f "/restore/{1}" ]; then cd /target && if [ "{2}" = "null-list" ]; then xargs -0 -I{{}} rm -rf -- "{{}}" < "/restore/{1}"; else while IFS= read -r path; do [ -z "$path" ] && continue; rm -rf -- "$path"; done < "/restore/{1}"; fi; fi' -f $archiveRelativePathUnix, $deletionsRelativePathUnix, $DeletionsPathFormat)
   )
 }
 
@@ -299,6 +328,7 @@ $restoreName = 'restore-{0}' -f (Get-Date -Format 'yyyyMMdd-HHmmss')
 $extractRoot = Join-Path $RestoreWorkspace $restoreName
 $requestedExtractRoot = Join-Path $extractRoot 'requested'
 $baseExtractRoot = Join-Path $extractRoot 'base-full'
+$generatedListsRoot = Join-Path $extractRoot 'generated-lists'
 
 New-Item -ItemType Directory -Path $extractRoot -Force | Out-Null
 
@@ -366,13 +396,38 @@ try {
       } else {
         ''
       }
+      $deletionsFormat = if ($volumeEntry.PSObject.Properties.Name -contains 'deletionsFormat') {
+        [string]$volumeEntry.deletionsFormat
+      } else {
+        'plain-lines'
+      }
 
       if (!(Test-Path -LiteralPath $archivePath)) {
         throw "Delta volume archive not found: $archivePath"
       }
 
+      $deletionsRelativePath = $deletionsFile
+      $deletionsPathFormat = 'plain-lines'
+
+      if (![string]::IsNullOrWhiteSpace($deletionsFile) -and $deletionsFormat -eq 'json-array') {
+        $deletionsSourcePath = Join-Path $requestedExtractRoot $deletionsFile
+
+        if (!(Test-Path -LiteralPath $deletionsSourcePath)) {
+          throw "Delta deletions file not found: $deletionsSourcePath"
+        }
+
+        $deletionsEntries = @(Get-Content -LiteralPath $deletionsSourcePath -Raw | ConvertFrom-Json)
+        New-Item -ItemType Directory -Path $generatedListsRoot -Force | Out-Null
+
+        $generatedDeletionsPath = Join-Path $generatedListsRoot ([System.IO.Path]::GetFileNameWithoutExtension($deletionsFile) + '.null')
+        Save-NullDelimitedText -Path $generatedDeletionsPath -Lines @($deletionsEntries | ForEach-Object { [string]$_ })
+
+        $deletionsRelativePath = [System.IO.Path]::GetRelativePath($requestedExtractRoot, $generatedDeletionsPath)
+        $deletionsPathFormat = 'null-list'
+      }
+
       Write-Log "Applying volume delta for $volumeName at $($volumeEntry.destination)"
-      Apply-VolumeDelta -UtilityImage $utilityImage -VolumeName $volumeName -ExtractRoot $requestedExtractRoot -ArchiveRelativePath $volumeEntry.file -DeletionsRelativePath $deletionsFile
+      Apply-VolumeDelta -UtilityImage $utilityImage -VolumeName $volumeName -ExtractRoot $requestedExtractRoot -ArchiveRelativePath $volumeEntry.file -DeletionsRelativePath $deletionsRelativePath -DeletionsPathFormat $deletionsPathFormat
     }
   } else {
     foreach ($volumeEntry in $requestedManifest.volumes) {

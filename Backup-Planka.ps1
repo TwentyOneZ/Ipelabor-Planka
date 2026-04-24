@@ -157,6 +157,33 @@ function Save-TextLines {
   [System.IO.File]::WriteAllText($Path, $content, [System.Text.UTF8Encoding]::new($false))
 }
 
+function Save-NullDelimitedText {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Path,
+    [Parameter(Mandatory = $true)]
+    [string[]]$Lines
+  )
+
+  $directory = Split-Path -Path $Path -Parent
+  if ($directory) {
+    New-Item -ItemType Directory -Path $directory -Force | Out-Null
+  }
+
+  $encoding = [System.Text.UTF8Encoding]::new($false)
+  $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+
+  try {
+    foreach ($line in $Lines) {
+      $bytes = $encoding.GetBytes([string]$line)
+      $stream.Write($bytes, 0, $bytes.Length)
+      $stream.WriteByte(0)
+    }
+  } finally {
+    $stream.Dispose()
+  }
+}
+
 function Get-ContainerMountMap {
   param(
     [Parameter(Mandatory = $true)]
@@ -259,7 +286,7 @@ function Get-VolumeFileManifest {
     'alpine',
     'sh',
     '-lc',
-    'cd /source && find . -type f | sort | while IFS= read -r file; do rel="${file#./}"; size=$(stat -c%s "$file"); hash=$(sha256sum "$file"); hash=${hash%% *}; printf "%s\t%s\t%s\n" "$rel" "$size" "$hash"; done'
+    'cd /source && find . -type f -exec sh -c ''for file do rel="${file#./}"; rel_b64=$(printf "%s" "$rel" | base64 | tr -d "\n"); size=$(stat -c%s "$file"); hash=$(sha256sum "$file"); hash=${hash%% *}; printf "%s\t%s\t%s\n" "$rel_b64" "$size" "$hash"; done'' sh {} +'
   ) -CaptureOutput
 
   $entries = @()
@@ -277,7 +304,7 @@ function Get-VolumeFileManifest {
     }
 
     $entries += [ordered]@{
-      path = $parts[0]
+      path = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($parts[0]))
       size = [long]$parts[1]
       sha256 = $parts[2]
     }
@@ -318,8 +345,8 @@ function Export-VolumeDeltaArchive {
   $listRoot = Join-Path $archiveDirectory '_lists'
   New-Item -ItemType Directory -Path $listRoot -Force | Out-Null
 
-  $listPath = Join-Path $listRoot ([System.IO.Path]::GetFileNameWithoutExtension($archiveName) + '.txt')
-  Save-TextLines -Path $listPath -Lines $RelativePaths
+  $listPath = Join-Path $listRoot ([System.IO.Path]::GetFileNameWithoutExtension($archiveName) + '.list')
+  Save-NullDelimitedText -Path $listPath -Lines $RelativePaths
 
   try {
     Invoke-NativeCommand -FilePath 'docker' -Arguments @(
@@ -334,7 +361,7 @@ function Export-VolumeDeltaArchive {
       $UtilityImage,
       'sh',
       '-lc',
-      ('if [ -s "/lists/{0}" ]; then tar czf "/backup/{1}" -C /source -T "/lists/{0}"; else tar czf "/backup/{1}" -T /dev/null; fi' -f ([System.IO.Path]::GetFileName($listPath)), $archiveName)
+      ('if [ -s "/lists/{0}" ]; then tar --null -czf "/backup/{1}" -C /source -T "/lists/{0}"; else tar czf "/backup/{1}" -T /dev/null; fi' -f ([System.IO.Path]::GetFileName($listPath)), $archiveName)
     )
   } finally {
     if (Test-Path -LiteralPath $listPath) {
@@ -402,11 +429,11 @@ $script:LogFile = Join-Path $logRoot "$backupName.log"
 New-Item -ItemType File -Path $script:LogFile -Force | Out-Null
 
 $volumeDefinitions = @(
-  [ordered]@{ Alias = 'data'; Destination = '/app/data'; FullArchive = 'data.tgz'; DeltaArchive = 'data.delta.tgz'; DeletionsFile = 'data.deleted.txt' }
-  [ordered]@{ Alias = 'favicons'; Destination = '/app/data/protected/favicons'; FullArchive = 'favicons.tgz'; DeltaArchive = 'favicons.delta.tgz'; DeletionsFile = 'favicons.deleted.txt' }
-  [ordered]@{ Alias = 'user-avatars'; Destination = '/app/data/protected/user-avatars'; FullArchive = 'user-avatars.tgz'; DeltaArchive = 'user-avatars.delta.tgz'; DeletionsFile = 'user-avatars.deleted.txt' }
-  [ordered]@{ Alias = 'background-images'; Destination = '/app/data/protected/background-images'; FullArchive = 'background-images.tgz'; DeltaArchive = 'background-images.delta.tgz'; DeletionsFile = 'background-images.deleted.txt' }
-  [ordered]@{ Alias = 'attachments'; Destination = '/app/data/private/attachments'; FullArchive = 'attachments.tgz'; DeltaArchive = 'attachments.delta.tgz'; DeletionsFile = 'attachments.deleted.txt' }
+  [ordered]@{ Alias = 'data'; Destination = '/app/data'; FullArchive = 'data.tgz'; DeltaArchive = 'data.delta.tgz'; DeletionsFile = 'data.deleted.json' }
+  [ordered]@{ Alias = 'favicons'; Destination = '/app/data/protected/favicons'; FullArchive = 'favicons.tgz'; DeltaArchive = 'favicons.delta.tgz'; DeletionsFile = 'favicons.deleted.json' }
+  [ordered]@{ Alias = 'user-avatars'; Destination = '/app/data/protected/user-avatars'; FullArchive = 'user-avatars.tgz'; DeltaArchive = 'user-avatars.delta.tgz'; DeletionsFile = 'user-avatars.deleted.json' }
+  [ordered]@{ Alias = 'background-images'; Destination = '/app/data/protected/background-images'; FullArchive = 'background-images.tgz'; DeltaArchive = 'background-images.delta.tgz'; DeletionsFile = 'background-images.deleted.json' }
+  [ordered]@{ Alias = 'attachments'; Destination = '/app/data/private/attachments'; FullArchive = 'attachments.tgz'; DeltaArchive = 'attachments.delta.tgz'; DeletionsFile = 'attachments.deleted.json' }
 )
 
 $incrementalSummary = @{}
@@ -533,7 +560,7 @@ try {
       Join-Path $volumesRoot $volumeDefinition.DeltaArchive
     )
 
-    Save-TextLines -Path (Join-Path $volumesRoot $volumeDefinition.DeletionsFile) -Lines $deletedPaths.ToArray()
+    Save-JsonFile -Path (Join-Path $volumesRoot $volumeDefinition.DeletionsFile) -Value @($deletedPaths.ToArray())
     $incrementalSummary[$volumeDefinition.Alias] = [ordered]@{
       changedFileCount = $changedPaths.Count
       deletedFileCount = $deletedPaths.Count
@@ -604,6 +631,7 @@ try {
       file = ('volumes/{0}' -f $volumeDefinition.DeltaArchive)
       mode = 'delta'
       deletionsFile = ('volumes/{0}' -f $volumeDefinition.DeletionsFile)
+      deletionsFormat = 'json-array'
       changedFileCount = $summary.changedFileCount
       deletedFileCount = $summary.deletedFileCount
       manifestFile = ('manifests/volumes/{0}.json' -f $volumeDefinition.Alias)

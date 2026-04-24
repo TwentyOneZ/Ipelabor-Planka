@@ -5,7 +5,9 @@ param(
   [datetime]$DailyAt = (Get-Date '20:00'),
   [datetime]$WeeklyAt = (Get-Date '21:00'),
   [string]$LocalBackupRoot,
-  [string]$ArchiveDestinationRoot = 'G:\Meu Drive\Shared\Ipelabor\Planka'
+  [string]$ArchiveDestinationRoot = 'G:\Meu Drive\Shared\Ipelabor\Planka',
+  [ValidateSet('Limited', 'Highest')]
+  [string]$RunLevel = 'Limited'
 )
 
 Set-StrictMode -Version Latest
@@ -67,17 +69,25 @@ function Register-BackupTask {
     [string]$Description
   )
 
-  $principal = New-ScheduledTaskPrincipal -UserId $currentUser -LogonType Interactive -RunLevel Highest
+  $principal = New-ScheduledTaskPrincipal -UserId $currentUser -LogonType Interactive -RunLevel $RunLevel
   $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries
 
-  Register-ScheduledTask `
-    -TaskName $TaskName `
-    -Action $Action `
-    -Trigger $Trigger `
-    -Principal $principal `
-    -Settings $settings `
-    -Description $Description `
-    -Force | Out-Null
+  try {
+    Register-ScheduledTask `
+      -TaskName $TaskName `
+      -Action $Action `
+      -Trigger $Trigger `
+      -Principal $principal `
+      -Settings $settings `
+      -Description $Description `
+      -Force | Out-Null
+  } catch {
+    if ($_.Exception.Message -match 'Acesso negado|Access is denied|0x80070005') {
+      throw "Task Scheduler recusou o cadastro da tarefa. Tente abrir o PowerShell como Administrador e rodar novamente. Se preferir sem elevação, o script agora usa RunLevel '$RunLevel', que costuma funcionar melhor para tarefas do usuário atual."
+    }
+
+    throw
+  }
 }
 
 $legacyTaskName = 'Ipelabor Planka Daily Backup'
