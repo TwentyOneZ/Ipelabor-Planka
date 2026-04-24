@@ -2,14 +2,26 @@
 param(
   [string]$TaskName = 'Ipelabor Planka Daily Backup',
   [datetime]$DailyAt = (Get-Date '20:00'),
-  [string]$LocalBackupRoot = (Join-Path $PSScriptRoot 'backups'),
+  [string]$LocalBackupRoot,
   [string]$ArchiveDestinationRoot = 'G:\Meu Drive\Shared\Ipelabor\Planka'
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$backupScriptPath = Join-Path $PSScriptRoot 'Backup-Planka.ps1'
+$scriptRoot = if ($PSScriptRoot) {
+  $PSScriptRoot
+} elseif ($PSCommandPath) {
+  Split-Path -Path $PSCommandPath -Parent
+} else {
+  (Get-Location).Path
+}
+
+if ([string]::IsNullOrWhiteSpace($LocalBackupRoot)) {
+  $LocalBackupRoot = Join-Path $scriptRoot 'backups'
+}
+
+$backupScriptPath = Join-Path $scriptRoot 'Backup-Planka.ps1'
 
 if (!(Test-Path -LiteralPath $backupScriptPath)) {
   throw "Backup script not found: $backupScriptPath"

@@ -2,13 +2,33 @@
 param(
   [Parameter(Mandatory = $true, Position = 0)]
   [string]$BackupFile,
-  [string]$ComposeFile = (Join-Path $PSScriptRoot 'docker-compose.yml'),
-  [string]$EnvFile = (Join-Path $PSScriptRoot '.env'),
-  [string]$RestoreWorkspace = (Join-Path $PSScriptRoot 'backups\restore-work')
+  [string]$ComposeFile,
+  [string]$EnvFile,
+  [string]$RestoreWorkspace
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+$scriptRoot = if ($PSScriptRoot) {
+  $PSScriptRoot
+} elseif ($PSCommandPath) {
+  Split-Path -Path $PSCommandPath -Parent
+} else {
+  (Get-Location).Path
+}
+
+if ([string]::IsNullOrWhiteSpace($ComposeFile)) {
+  $ComposeFile = Join-Path $scriptRoot 'docker-compose.yml'
+}
+
+if ([string]::IsNullOrWhiteSpace($EnvFile)) {
+  $EnvFile = Join-Path $scriptRoot '.env'
+}
+
+if ([string]::IsNullOrWhiteSpace($RestoreWorkspace)) {
+  $RestoreWorkspace = Join-Path $scriptRoot 'backups\restore-work'
+}
 
 function Write-Log {
   param(
@@ -258,7 +278,7 @@ try {
   $termsSnapshot = Join-Path $extractRoot 'terms'
 
   if (Test-Path -LiteralPath $termsSnapshot) {
-    $termsDestination = Join-Path $PSScriptRoot 'terms'
+    $termsDestination = Join-Path $scriptRoot 'terms'
 
     Write-Log 'Restoring custom terms files'
     if (Test-Path -LiteralPath $termsDestination) {

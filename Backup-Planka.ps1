@@ -1,13 +1,33 @@
 [CmdletBinding()]
 param(
-  [string]$ComposeFile = (Join-Path $PSScriptRoot 'docker-compose.yml'),
-  [string]$EnvFile = (Join-Path $PSScriptRoot '.env'),
-  [string]$LocalBackupRoot = (Join-Path $PSScriptRoot 'backups'),
+  [string]$ComposeFile,
+  [string]$EnvFile,
+  [string]$LocalBackupRoot,
   [string]$ArchiveDestinationRoot = 'G:\Meu Drive\Shared\Ipelabor\Planka'
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+$scriptRoot = if ($PSScriptRoot) {
+  $PSScriptRoot
+} elseif ($PSCommandPath) {
+  Split-Path -Path $PSCommandPath -Parent
+} else {
+  (Get-Location).Path
+}
+
+if ([string]::IsNullOrWhiteSpace($ComposeFile)) {
+  $ComposeFile = Join-Path $scriptRoot 'docker-compose.yml'
+}
+
+if ([string]::IsNullOrWhiteSpace($EnvFile)) {
+  $EnvFile = Join-Path $scriptRoot '.env'
+}
+
+if ([string]::IsNullOrWhiteSpace($LocalBackupRoot)) {
+  $LocalBackupRoot = Join-Path $scriptRoot 'backups'
+}
 
 $script:LogFile = $null
 
@@ -292,9 +312,9 @@ try {
     Copy-Item -LiteralPath $EnvFile -Destination (Join-Path $configRoot '.env.snapshot') -Force
   }
 
-  if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'terms')) {
+  if (Test-Path -LiteralPath (Join-Path $scriptRoot 'terms')) {
     Write-Log 'Saving custom terms snapshot'
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'terms') -Destination $termsSnapshotRoot -Recurse -Force
+    Copy-Item -LiteralPath (Join-Path $scriptRoot 'terms') -Destination $termsSnapshotRoot -Recurse -Force
   }
 
   $manifest = [ordered]@{
