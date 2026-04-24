@@ -10,7 +10,7 @@ import { Button, Divider, Header, Radio, Tab } from 'semantic-ui-react';
 
 import selectors from '../../../../selectors';
 import entryActions from '../../../../entry-actions';
-import UserRoles from '../../../../constants/UserRoles';
+import { UserRoles } from '../../../../constants/Enums';
 import { usePopupInClosableContext } from '../../../../hooks';
 import EditInformation from './EditInformation';
 import ConfirmationStep from '../../../common/ConfirmationStep';
