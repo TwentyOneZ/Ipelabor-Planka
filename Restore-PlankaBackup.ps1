@@ -73,6 +73,7 @@ function Save-NullDelimitedText {
     [Parameter(Mandatory = $true)]
     [string]$Path,
     [Parameter(Mandatory = $true)]
+    [AllowEmptyCollection()]
     [string[]]$Lines
   )
 
@@ -328,7 +329,7 @@ $restoreName = 'restore-{0}' -f (Get-Date -Format 'yyyyMMdd-HHmmss')
 $extractRoot = Join-Path $RestoreWorkspace $restoreName
 $requestedExtractRoot = Join-Path $extractRoot 'requested'
 $baseExtractRoot = Join-Path $extractRoot 'base-full'
-$generatedListsRoot = Join-Path $extractRoot 'generated-lists'
+$generatedListsRoot = Join-Path $requestedExtractRoot '_generated-lists'
 
 New-Item -ItemType Directory -Path $extractRoot -Force | Out-Null
 

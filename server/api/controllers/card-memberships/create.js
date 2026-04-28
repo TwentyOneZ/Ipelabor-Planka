@@ -130,8 +130,8 @@ module.exports = {
     }
 
     const targetBoardMembership = await BoardMembership.qm.getOneByBoardIdAndUserId(
-      user.id,
       board.id,
+      user.id,
     );
 
     if (!targetBoardMembership) {
@@ -147,7 +147,7 @@ module.exports = {
           request: this.req,
         });
       } catch (error) {
-        if (error !== 'userAlreadyBoardMember') {
+        if (error !== 'userAlreadyBoardMember' && error.exit !== 'userAlreadyBoardMember') {
           throw error;
         }
       }

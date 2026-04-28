@@ -79,20 +79,28 @@ module.exports = {
       user: inputs.actorUser,
     });
 
-    let cardSubscription;
-    try {
-      cardSubscription = await CardSubscription.qm.createOne({
-        cardId: cardMembership.cardId,
-        userId: cardMembership.userId,
-        isPermanent: false,
-      });
-    } catch (error) {
-      if (error.code !== 'E_UNIQUE') {
-        throw error;
+    let cardSubscription = await CardSubscription.qm.getOneByCardIdAndUserId(
+      cardMembership.cardId,
+      cardMembership.userId,
+    );
+    let isCardSubscriptionCreated = false;
+
+    if (!cardSubscription) {
+      try {
+        cardSubscription = await CardSubscription.qm.createOne({
+          cardId: cardMembership.cardId,
+          userId: cardMembership.userId,
+          isPermanent: false,
+        });
+        isCardSubscriptionCreated = true;
+      } catch (error) {
+        if (error.code !== 'E_UNIQUE') {
+          throw error;
+        }
       }
     }
 
-    if (cardSubscription) {
+    if (isCardSubscriptionCreated) {
       sails.sockets.broadcast(
         `user:${cardMembership.userId}`,
         'cardUpdate',

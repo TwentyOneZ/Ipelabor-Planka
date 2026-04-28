@@ -15,6 +15,7 @@ import selectors from '../../../selectors';
 import { BoardMembershipRoles } from '../../../constants/Enums';
 import Card from '../../cards/Card';
 import AddCard from '../../cards/AddCard';
+import AddList from './KanbanContent/AddList';
 import PlusMathIcon from '../../../assets/images/plus-math-icon.svg?react';
 
 import styles from './ListView.module.scss';
@@ -23,18 +24,21 @@ const ListView = React.memo(
   ({ cardIds, isCardsFetching, isAllCardsFetched, onCardsFetch, onCardCreate, onCardPaste }) => {
     const clipboard = useSelector(selectors.selectClipboard);
 
-    const { canAddCard, canPasteCard } = useSelector((state) => {
+    const { canAddCard, canPasteCard, canAddList } = useSelector((state) => {
       const boardMembership = selectors.selectCurrentUserMembershipForCurrentBoard(state);
       const isEditor = !!boardMembership && boardMembership.role === BoardMembershipRoles.EDITOR;
+      const isEditModeEnabled = selectors.selectIsEditModeEnabled(state);
 
       return {
         canAddCard: isEditor,
         canPasteCard: isEditor,
+        canAddList: isEditModeEnabled && isEditor,
       };
     }, shallowEqual);
 
     const [t] = useTranslation();
     const [isAddCardOpened, setIsAddCardOpened] = useState(false);
+    const [isAddListOpened, setIsAddListOpened] = useState(false);
 
     const [inViewRef] = useInView({
       threshold: 1,
@@ -53,6 +57,14 @@ const ListView = React.memo(
       setIsAddCardOpened(false);
     }, []);
 
+    const handleAddListClick = useCallback(() => {
+      setIsAddListOpened(true);
+    }, []);
+
+    const handleAddListClose = useCallback(() => {
+      setIsAddListOpened(false);
+    }, []);
+
     return (
       <div className={styles.wrapper}>
         {canAddCard &&
@@ -60,17 +72,25 @@ const ListView = React.memo(
             <div className={styles.segment}>
               <AddCard onCreate={onCardCreate} onClose={handleAddCardClose} />
             </div>
+          ) : !onCardCreate && canAddList && isAddListOpened ? (
+            <div className={styles.addListWrapper}>
+              <AddList onClose={handleAddListClose} />
+            </div>
           ) : (
             <div className={styles.addCardButtonWrapper}>
               <Button
                 type="button"
-                disabled={!onCardCreate}
+                disabled={!onCardCreate && !canAddList}
                 className={styles.addCardButton}
-                onClick={handleAddCardClick}
+                onClick={onCardCreate ? handleAddCardClick : handleAddListClick}
               >
                 <PlusMathIcon className={styles.addCardButtonIcon} />
                 <span className={styles.addCardButtonText}>
-                  {onCardCreate ? t('action.addCard') : t('common.atLeastOneListMustBePresent')}
+                  {onCardCreate
+                    ? t('action.addCard')
+                    : canAddList
+                      ? t('action.addList')
+                      : t('common.atLeastOneListMustBePresent')}
                 </span>
               </Button>
               {onCardPaste && clipboard && canPasteCard && (
