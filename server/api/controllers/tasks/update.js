@@ -46,6 +46,12 @@
  *                 maxLength: 1024
  *                 description: Name/title of the task
  *                 example: Write unit tests
+ *               dueDate:
+ *                 type: string
+ *                 format: date-time
+ *                 nullable: true
+ *                 description: Due date for the task
+ *                 example: 2024-01-01T00:00:00.000Z
  *               isCompleted:
  *                 type: boolean
  *                 description: Whether the task is completed
@@ -73,6 +79,7 @@
  */
 
 const { idInput } = require('../../../utils/inputs');
+const { isDueDate } = require('../../../utils/validators');
 
 const Errors = {
   NOT_ENOUGH_RIGHTS: {
@@ -108,6 +115,11 @@ module.exports = {
       type: 'string',
       isNotEmptyString: true,
       maxLength: 1024,
+    },
+    dueDate: {
+      type: 'string',
+      custom: isDueDate,
+      allowNull: true,
     },
     isCompleted: {
       type: 'boolean',
@@ -182,7 +194,13 @@ module.exports = {
       }
     }
 
-    const values = _.pick(inputs, ['assigneeUserId', 'position', 'name', 'isCompleted']);
+    const values = _.pick(inputs, [
+      'assigneeUserId',
+      'position',
+      'name',
+      'dueDate',
+      'isCompleted',
+    ]);
 
     task = await sails.helpers.tasks.updateOne.with({
       project,

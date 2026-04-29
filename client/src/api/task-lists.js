@@ -4,13 +4,21 @@
  */
 
 import socket from './socket';
+import { transformTask } from './tasks';
 
 /* Actions */
 
 const createTaskList = (cardId, data, headers) =>
   socket.post(`/cards/${cardId}/task-lists`, data, headers);
 
-const getTaskList = (id, headers) => socket.get(`/task-lists/${id}`, undefined, headers);
+const getTaskList = (id, headers) =>
+  socket.get(`/task-lists/${id}`, undefined, headers).then((body) => ({
+    ...body,
+    included: {
+      ...body.included,
+      tasks: body.included.tasks.map(transformTask),
+    },
+  }));
 
 const updateTaskList = (id, data, headers) => socket.patch(`/task-lists/${id}`, data, headers);
 

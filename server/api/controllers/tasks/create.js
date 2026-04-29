@@ -48,6 +48,12 @@
  *                 type: boolean
  *                 description: Whether the task is completed
  *                 example: false
+ *               dueDate:
+ *                 type: string
+ *                 format: date-time
+ *                 nullable: true
+ *                 description: Due date for the task
+ *                 example: 2024-01-01T00:00:00.000Z
  *     responses:
  *       200:
  *         description: Task created successfully
@@ -73,6 +79,7 @@
  */
 
 const { idInput } = require('../../../utils/inputs');
+const { isDueDate } = require('../../../utils/validators');
 
 const Errors = {
   NOT_ENOUGH_RIGHTS: {
@@ -109,6 +116,11 @@ module.exports = {
     },
     isCompleted: {
       type: 'boolean',
+    },
+    dueDate: {
+      type: 'string',
+      custom: isDueDate,
+      allowNull: true,
     },
   },
 
@@ -174,7 +186,13 @@ module.exports = {
       }
     }
 
-    const values = _.pick(inputs, ['position', 'name', 'isCompleted']);
+    const valueKeys = ['position', 'name', 'isCompleted'];
+
+    if (!linkedCard) {
+      valueKeys.push('dueDate');
+    }
+
+    const values = _.pick(inputs, valueKeys);
 
     const task = await sails.helpers.tasks.createOne
       .with({

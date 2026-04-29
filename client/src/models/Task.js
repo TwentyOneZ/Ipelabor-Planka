@@ -15,6 +15,7 @@ export default class extends BaseModel {
     id: attr(),
     position: attr(),
     name: attr(),
+    dueDate: attr(),
     isCompleted: attr({
       getDefault: () => false,
     }),
@@ -118,6 +119,7 @@ export default class extends BaseModel {
       assigneeUserId: this.assigneeUserId,
       position: this.position,
       name: this.name,
+      dueDate: this.dueDate,
       isCompleted: this.isCompleted,
       ...data,
     });

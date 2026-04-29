@@ -22,9 +22,11 @@ import { ClosableContext } from '../../../../contexts';
 import Paths from '../../../../constants/Paths';
 import EditName from './EditName';
 import SelectAssigneeStep from './SelectAssigneeStep';
+import EditDueDateStep from './EditDueDateStep';
 import ActionsStep from './ActionsStep';
 import Linkify from '../../../common/Linkify';
 import UserAvatar from '../../../users/UserAvatar';
+import DueDateChip from '../../../cards/DueDateChip';
 
 import styles from './Task.module.scss';
 
@@ -115,7 +117,36 @@ const Task = React.memo(({ id, index }) => {
   }, [isEditNameOpened]);
 
   const SelectAssigneePopup = usePopupInClosableContext(SelectAssigneeStep);
+  const EditDueDatePopup = usePopupInClosableContext(EditDueDateStep);
   const ActionsPopup = usePopupInClosableContext(ActionsStep);
+
+  const assigneeNode = !task.linkedCardId && (
+    <SelectAssigneePopup
+      currentUserId={task.assigneeUserId}
+      onUserSelect={handleUserSelect}
+      onUserDeselect={handleUserDeselect}
+    >
+      {task.assigneeUserId ? (
+        <UserAvatar id={task.assigneeUserId} size="tiny" className={styles.assigneeUserAvatar} />
+      ) : (
+        <Button className={styles.button}>
+          <Icon fitted name="add user" size="small" />
+        </Button>
+      )}
+    </SelectAssigneePopup>
+  );
+
+  const dueDateNode = !task.linkedCardId && (
+    <EditDueDatePopup taskId={id}>
+      {task.dueDate ? (
+        <DueDateChip value={task.dueDate} size="tiny" isCompleted={task.isCompleted} withStatus />
+      ) : (
+        <Button className={styles.button}>
+          <Icon fitted name="calendar check outline" size="small" />
+        </Button>
+      )}
+    </EditDueDatePopup>
+  );
 
   return (
     <Draggable
@@ -150,6 +181,7 @@ const Task = React.memo(({ id, index }) => {
                     styles.text,
                     task.linkedCardId && styles.textLinked,
                     canEdit && styles.textEditable,
+                    task.dueDate && !task.linkedCardId && styles.textWithDueDate,
                     canEdit && !task.linkedCardId && styles.textPointable,
                   )}
                   onClick={handleClick}
@@ -186,28 +218,15 @@ const Task = React.memo(({ id, index }) => {
                     )}
                   </span>
                 </span>
-                {(task.assigneeUserId || isEditable) && (
+                {(task.assigneeUserId || task.dueDate || isEditable) && (
                   <div className={classNames(styles.actions, isEditable && styles.actionsEditable)}>
                     {isEditable ? (
                       <>
                         {!task.linkedCardId && (
-                          <SelectAssigneePopup
-                            currentUserId={task.assigneeUserId}
-                            onUserSelect={handleUserSelect}
-                            onUserDeselect={handleUserDeselect}
-                          >
-                            {task.assigneeUserId ? (
-                              <UserAvatar
-                                id={task.assigneeUserId}
-                                size="tiny"
-                                className={styles.assigneeUserAvatar}
-                              />
-                            ) : (
-                              <Button className={styles.button}>
-                                <Icon fitted name="add user" size="small" />
-                              </Button>
-                            )}
-                          </SelectAssigneePopup>
+                          <>
+                            {task.dueDate && !task.assigneeUserId ? dueDateNode : assigneeNode}
+                            {task.dueDate && !task.assigneeUserId ? assigneeNode : dueDateNode}
+                          </>
                         )}
                         <ActionsPopup taskId={id} onNameEdit={handleNameEdit}>
                           <Button className={styles.button}>
@@ -216,11 +235,23 @@ const Task = React.memo(({ id, index }) => {
                         </ActionsPopup>
                       </>
                     ) : (
-                      <UserAvatar
-                        id={task.assigneeUserId}
-                        size="tiny"
-                        className={styles.assigneeUserAvatar}
-                      />
+                      <>
+                        {task.assigneeUserId && (
+                          <UserAvatar
+                            id={task.assigneeUserId}
+                            size="tiny"
+                            className={styles.assigneeUserAvatar}
+                          />
+                        )}
+                        {task.dueDate && (
+                          <DueDateChip
+                            value={task.dueDate}
+                            size="tiny"
+                            isCompleted={task.isCompleted}
+                            withStatus
+                          />
+                        )}
+                      </>
                     )}
                   </div>
                 )}

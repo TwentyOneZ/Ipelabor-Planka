@@ -9,6 +9,7 @@ import socket from './socket';
 import { transformAttachment } from './attachments';
 import { transformActivity } from './activities';
 import { transformNotification } from './notifications';
+import { transformTask } from './tasks';
 
 /* Transformers */
 
@@ -66,6 +67,7 @@ const getCards = (listId, data, headers) =>
     items: body.items.map(transformCard),
     included: {
       ...body.included,
+      tasks: body.included.tasks.map(transformTask),
       attachments: body.included.attachments.map(transformAttachment),
     },
   }));
@@ -82,6 +84,7 @@ const getCard = (id, headers) =>
     item: transformCard(body.item),
     included: {
       ...body.included,
+      tasks: body.included.tasks.map(transformTask),
       attachments: body.included.attachments.map(transformAttachment),
     },
   }));
@@ -98,6 +101,7 @@ const duplicateCard = (id, data, headers) =>
     item: transformCard(body.item),
     included: {
       ...body.included,
+      tasks: body.included.tasks.map(transformTask),
       attachments: body.included.attachments.map(transformAttachment),
     },
   }));

@@ -7,6 +7,7 @@ import omit from 'lodash/omit';
 
 import socket from './socket';
 import { transformCard } from './cards';
+import { transformTask } from './tasks';
 import { transformAttachment } from './attachments';
 import { transformActivity } from './activities';
 
@@ -21,6 +22,7 @@ const getList = (id, headers) =>
     included: {
       ...body.included,
       cards: body.included.cards.map(transformCard),
+      tasks: body.included.tasks.map(transformTask),
       attachments: body.included.attachments.map(transformAttachment),
     },
   }));

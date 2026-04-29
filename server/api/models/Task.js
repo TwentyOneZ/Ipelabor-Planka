@@ -23,6 +23,7 @@
  *         - assigneeUserId
  *         - position
  *         - name
+ *         - dueDate
  *         - isCompleted
  *         - createdAt
  *         - updatedAt
@@ -53,6 +54,12 @@
  *           type: string
  *           description: Name/title of the task
  *           example: Write unit tests
+ *         dueDate:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *           description: Due date for the task
+ *           example: 2024-01-01T00:00:00.000Z
  *         isCompleted:
  *           type: boolean
  *           default: false
@@ -85,6 +92,10 @@ module.exports = {
     name: {
       type: 'string',
       required: true,
+    },
+    dueDate: {
+      type: 'ref',
+      columnName: 'due_date',
     },
     isCompleted: {
       type: 'boolean',

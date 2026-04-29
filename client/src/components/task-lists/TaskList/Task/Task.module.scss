@@ -5,6 +5,7 @@
 
 :global(#app) {
   .actions {
+    align-items: center;
     display: flex;
     gap: 2px;
     position: absolute;
@@ -99,11 +100,15 @@
   }
 
   .textEditable {
-    padding-right: 68px;
+    padding-right: 100px;
 
     &.textLinked {
       padding-right: 34px;
     }
+  }
+
+  .textWithDueDate {
+    padding-right: 160px;
   }
 
   .textPointable {

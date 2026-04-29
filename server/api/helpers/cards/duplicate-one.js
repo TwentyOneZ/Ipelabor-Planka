@@ -248,7 +248,7 @@ module.exports = {
     const nextTaskLists = await TaskList.qm.create(nextTaskListsValues);
 
     const nextTasksValues = tasks.map((task) => ({
-      ..._.pick(task, ['linkedCardId', 'position', 'name', 'isCompleted']),
+      ..._.pick(task, ['linkedCardId', 'position', 'name', 'dueDate', 'isCompleted']),
       taskListId: nextTaskListIdByTaskListId[task.taskListId],
       assigneeUserId: boardMemberUserIdsSet.has(task.assigneeUserId) ? task.assigneeUserId : null,
     }));
