@@ -122,6 +122,28 @@ const Item = React.memo(({ id, onClose }) => {
       );
 
       break;
+    case NotificationTypes.ASSIGN_TASK: {
+      const taskName = notification.data.task.name;
+
+      contentNode = (
+        <Trans
+          i18nKey="common.userAssignedYouToTaskOnCard"
+          values={{
+            user: creatorUserName,
+            task: taskName,
+            card: cardName,
+          }}
+        >
+          <span className={styles.author}>{creatorUserName}</span>
+          {` assigned you to ${taskName} on `}
+          <Link to={Paths.CARDS.replace(':id', notification.cardId)} onClick={onClose}>
+            {cardName}
+          </Link>
+        </Trans>
+      );
+
+      break;
+    }
     case NotificationTypes.MENTION_IN_COMMENT: {
       const commentText = truncate(mentionMarkupToText(notification.data.text));
 

@@ -111,6 +111,7 @@ export const NotificationTypes = {
   MOVE_CARD: 'moveCard',
   COMMENT_CARD: 'commentCard',
   ADD_MEMBER_TO_CARD: 'addMemberToCard',
+  ASSIGN_TASK: 'assignTask',
   MENTION_IN_COMMENT: 'mentionInComment',
 };
 

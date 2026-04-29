@@ -16,6 +16,8 @@ const buildTitle = (notification, t) => {
       return t('New Comment');
     case Notification.Types.ADD_MEMBER_TO_CARD:
       return t('You Were Added to Card');
+    case Notification.Types.ASSIGN_TASK:
+      return t('You Were Assigned to Task');
     case Notification.Types.MENTION_IN_COMMENT:
       return t('You Were Mentioned in Comment');
     default:
@@ -99,6 +101,30 @@ const buildBodyByFormat = (board, card, notification, actorUser, t) => {
           escapeHtml(board.name),
         ),
       };
+    case Notification.Types.ASSIGN_TASK:
+      return {
+        text: t(
+          '%s assigned you to %s in %s on %s',
+          actorUser.name,
+          notification.data.task.name,
+          card.name,
+          board.name,
+        ),
+        markdown: t(
+          '%s assigned you to %s in %s on %s',
+          escapeMarkdown(actorUser.name),
+          `**${escapeMarkdown(notification.data.task.name)}**`,
+          markdownCardLink,
+          escapeMarkdown(board.name),
+        ),
+        html: t(
+          '%s assigned you to %s in %s on %s',
+          escapeHtml(actorUser.name),
+          `<b>${escapeHtml(notification.data.task.name)}</b>`,
+          htmlCardLink,
+          escapeHtml(board.name),
+        ),
+      };
     case Notification.Types.MENTION_IN_COMMENT: {
       const commentText = _.truncate(mentionMarkupToText(notification.data.text));
 
@@ -171,6 +197,16 @@ const buildEmail = (board, card, notification, actorUser, notifiableUser, t) => 
       html = `<p>${t(
         '%s added you to %s on %s',
         escapeHtml(actorUser.name),
+        cardLink,
+        boardLink,
+      )}</p>`;
+
+      break;
+    case Notification.Types.ASSIGN_TASK:
+      html = `<p>${t(
+        '%s assigned you to %s in %s on %s',
+        escapeHtml(actorUser.name),
+        `<b>${escapeHtml(notification.data.task.name)}</b>`,
         cardLink,
         boardLink,
       )}</p>`;
@@ -282,13 +318,12 @@ module.exports = {
             boards: [inputs.board],
             lists: [inputs.list],
             cards: [values.card],
-            ...(notification.commentId
-              ? {
-                  comments: [values.comment],
-                }
-              : {
-                  actions: [values.action],
-                }),
+            ...(values.comment && {
+              comments: [values.comment],
+            }),
+            ...(values.action && {
+              actions: [values.action],
+            }),
           },
         }),
         user: values.creatorUser,

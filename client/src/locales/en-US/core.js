@@ -355,6 +355,8 @@ export default {
       userAddedUserToCard: '<0>{{actorUser}}</0> added {{addedUser}} to <4>{{card}}</4>',
       userAddedUserToThisCard: '<0>{{actorUser}}</0> added {{addedUser}} to this card',
       userAddedYouToCard: '<0>{{user}}</0> added you to <2>{{card}}</2>',
+      userAssignedYouToTaskOnCard:
+        '<0>{{user}}</0> assigned you to {{task}} on <2>{{card}}</2>',
       userCompletedTaskOnCard: '<0>{{user}}</0> completed {{task}} on <4>{{card}}</4>',
       userCompletedTaskOnThisCard: '<0>{{user}}</0> completed {{task}} on this card',
       userCopiedCardFromCardToList:

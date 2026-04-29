@@ -136,6 +136,30 @@ module.exports = {
         user: inputs.actorUser,
       });
 
+      const isTaskAssignedToAnotherUser =
+        task.assigneeUserId &&
+        String(task.assigneeUserId) !== String(inputs.record.assigneeUserId) &&
+        String(task.assigneeUserId) !== String(inputs.actorUser.id);
+
+      if (isTaskAssignedToAnotherUser) {
+        await sails.helpers.notifications.createOne.with({
+          webhooks,
+          values: {
+            userId: task.assigneeUserId,
+            type: Notification.Types.ASSIGN_TASK,
+            data: {
+              card: _.pick(inputs.card, ['name']),
+              task: _.pick(task, ['id', 'name']),
+            },
+            creatorUser: inputs.actorUser,
+            card: inputs.card,
+          },
+          project: inputs.project,
+          board: inputs.board,
+          list: inputs.list,
+        });
+      }
+
       if (inputs.record.isCompleted !== task.isCompleted) {
         await sails.helpers.actions.createOne.with({
           webhooks,

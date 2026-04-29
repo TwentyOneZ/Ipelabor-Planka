@@ -63,7 +63,7 @@
  *           example: "1357158568008091270"
  *         type:
  *           type: string
- *           enum: [moveCard, commentCard, addMemberToCard, mentionInComment]
+ *           enum: [moveCard, commentCard, addMemberToCard, assignTask, mentionInComment]
  *           description: Type of the notification
  *           example: commentCard
  *         data:
@@ -93,6 +93,7 @@ const Types = {
   MOVE_CARD: 'moveCard',
   COMMENT_CARD: 'commentCard',
   ADD_MEMBER_TO_CARD: 'addMemberToCard',
+  ASSIGN_TASK: 'assignTask',
   MENTION_IN_COMMENT: 'mentionInComment',
 };
 
