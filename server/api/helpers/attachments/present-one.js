@@ -48,6 +48,8 @@ module.exports = {
           faviconUrl,
         },
       };
+    } else if (inputs.record.type === Attachment.Types.CARD) {
+      data = inputs.record;
     }
 
     return data;

@@ -69,6 +69,7 @@
 const Types = {
   FILE: 'file',
   LINK: 'link',
+  CARD: 'card',
 };
 
 module.exports = {

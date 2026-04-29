@@ -119,6 +119,7 @@ export default {
         'Pode gerenciar configurações de sistema e atuar como proprietário do projeto.',
       canOnlyViewBoard: 'Só pode visualizar o quadro.',
       cardActions_title: 'Ações do cartão',
+      cardNotFound: 'Cartão não encontrado.',
       cardNotFound_title: 'Cartão não encontrado',
       cardsOnThisListAreAvailableToAllBoardMembers:
         'Os cartões nesta lista estão disponíveis para todos os membros do quadro.',
@@ -281,7 +282,9 @@ export default {
       optional_inline: 'opcional',
       organization: 'Organização',
       others: 'Outros',
+      otherCards_title: 'Outros cartões',
       passwordIsSet: 'Senha definida',
+      pasteCardUrl: 'Cole a URL do cartão',
       phone: 'Telefone',
       plankaUsesAppriseToSendNotificationsToOver100PopularServices:
         'PLANKA usa <1><0>Apprise</0></1> para enviar notificações para mais de 100 serviços populares.',
@@ -423,6 +426,7 @@ export default {
       addToCard: 'Adicionar ao cartão',
       addUser: 'Adicionar usuário',
       addWebhook: 'Adicionar webhook',
+      attachCard: 'Anexar cartão',
       archive: 'Arquivar',
       archiveCard: 'Arquivar cartão',
       archiveCard_title: 'Arquivar cartão',
@@ -504,6 +508,7 @@ export default {
       move: 'Mover',
       moveCard_title: 'Mover cartão',
       moveList_title: 'Mover lista',
+      openCard: 'Abrir cartão',
       regenerateApiKey: 'Regenerar chave API',
       repeat: 'Repetir',
       repeat_title: 'Repetir',

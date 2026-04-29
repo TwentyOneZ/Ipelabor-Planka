@@ -113,6 +113,7 @@ export default {
         'Can manage the system wide settings and act as project owner.',
       canOnlyViewBoard: 'Can only view the board.',
       cardActions_title: 'Card Actions',
+      cardNotFound: 'Card not found.',
       cardNotFound_title: 'Card Not Found',
       cardsOnThisListAreAvailableToAllBoardMembers:
         'Cards on this list are available to all board members.',
@@ -273,7 +274,9 @@ export default {
       optional_inline: 'optional',
       organization: 'Organization',
       others: 'Others',
+      otherCards_title: 'Other Cards',
       passwordIsSet: 'Password is set',
+      pasteCardUrl: 'Paste card URL',
       phone: 'Phone',
       plankaUsesAppriseToSendNotificationsToOver100PopularServices:
         'PLANKA uses <1><0>Apprise</0></1> to send notifications to over 100 popular services.',
@@ -412,6 +415,7 @@ export default {
       addToCard: 'Add to card',
       addUser: 'Add user',
       addWebhook: 'Add webhook',
+      attachCard: 'Attach card',
       archive: 'Archive',
       archiveCard: 'Archive card',
       archiveCard_title: 'Archive Card',
@@ -493,6 +497,7 @@ export default {
       move: 'Move',
       moveCard_title: 'Move Card',
       moveList_title: 'Move List',
+      openCard: 'Open card',
       regenerateApiKey: 'Regenerate API key',
       repeat: 'Repeat',
       repeat_title: 'Repeat',

@@ -96,6 +96,7 @@ export const CardRepeatTypes = {
 export const AttachmentTypes = {
   FILE: 'file',
   LINK: 'link',
+  CARD: 'card',
 };
 
 export const ActivityTypes = {

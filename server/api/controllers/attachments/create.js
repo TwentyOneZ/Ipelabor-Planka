@@ -114,6 +114,9 @@ const Errors = {
   URL_MUST_BE_PRESENT: {
     urlMustBePresent: 'Url must be present',
   },
+  LINKED_CARD_NOT_FOUND: {
+    linkedCardNotFound: 'Linked card not found',
+  },
 };
 
 module.exports = {
@@ -131,6 +134,9 @@ module.exports = {
       type: 'string',
       maxLength: 2048,
       custom: isUrl,
+    },
+    linkedCardId: {
+      ...idInput,
     },
     name: {
       type: 'string',
@@ -159,6 +165,9 @@ module.exports = {
     },
     urlMustBePresent: {
       responseType: 'unprocessableEntity',
+    },
+    linkedCardNotFound: {
+      responseType: 'notFound',
     },
   },
 
@@ -203,6 +212,22 @@ module.exports = {
       }
 
       data = await sails.helpers.attachments.processLink(inputs.url);
+    } else if (inputs.type === Attachment.Types.CARD) {
+      if (!inputs.linkedCardId) {
+        throw Errors.LINKED_CARD_NOT_FOUND;
+      }
+
+      const { card: linkedCard, board: linkedBoard } = await sails.helpers.cards
+        .getPathToProjectById(inputs.linkedCardId)
+        .intercept('pathNotFound', () => Errors.LINKED_CARD_NOT_FOUND);
+
+      if (linkedBoard.id !== board.id || linkedCard.id === card.id) {
+        throw Errors.LINKED_CARD_NOT_FOUND;
+      }
+
+      data = {
+        cardId: linkedCard.id,
+      };
     }
 
     const values = {

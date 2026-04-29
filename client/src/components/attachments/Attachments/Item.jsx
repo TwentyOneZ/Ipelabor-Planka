@@ -32,6 +32,10 @@ const Item = React.memo(({ id, isVisible }) => {
     return <ItemContent id={id} />;
   }
 
+  if (attachment.type === AttachmentTypes.CARD) {
+    return isVisible ? <ItemContent id={id} /> : <span />;
+  }
+
   let galleryItemProps;
   if (attachment.type === AttachmentTypes.FILE) {
     if (attachment.data.image) {

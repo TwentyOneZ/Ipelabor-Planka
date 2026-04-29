@@ -9,23 +9,37 @@ import classNames from 'classnames';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { Button, Icon, Label, Loader } from 'semantic-ui-react';
+import { push } from '../../../lib/redux-router';
 
 import selectors from '../../../selectors';
 import entryActions from '../../../entry-actions';
 import { usePopupInClosableContext } from '../../../hooks';
 import { isListArchiveOrTrash } from '../../../utils/record-helpers';
 import { AttachmentTypes, BoardMembershipRoles } from '../../../constants/Enums';
+import Paths from '../../../constants/Paths';
 import EditStep from './EditStep';
 import Favicon from '../../common/Favicon';
 import TimeAgo from '../../common/TimeAgo';
+import UserAvatar from '../../users/UserAvatar';
 
 import styles from './ItemContent.module.scss';
 
 const ItemContent = React.forwardRef(({ id, onOpen }, ref) => {
   const selectAttachmentById = useMemo(() => selectors.makeSelectAttachmentById(), []);
+  const selectCardById = useMemo(() => selectors.makeSelectCardById(), []);
   const selectListById = useMemo(() => selectors.makeSelectListById(), []);
+  const selectUserIdsByCardId = useMemo(() => selectors.makeSelectUserIdsByCardId(), []);
 
   const attachment = useSelector((state) => selectAttachmentById(state, id));
+  const linkedCardId = attachment.data && attachment.data.cardId;
+  const linkedCard = useSelector((state) =>
+    linkedCardId ? selectCardById(state, linkedCardId) : null,
+  );
+  const linkedList = useSelector((state) =>
+    linkedCard ? selectListById(state, linkedCard.listId) : null,
+  );
+  const linkedUserIds =
+    useSelector((state) => (linkedCardId ? selectUserIdsByCardId(state, linkedCardId) : [])) || [];
 
   const isCover = useSelector(
     (state) => id === selectors.selectCurrentCard(state).coverAttachmentId,
@@ -47,12 +61,16 @@ const ItemContent = React.forwardRef(({ id, onOpen }, ref) => {
   const [t] = useTranslation();
 
   const handleClick = useCallback(() => {
-    if (onOpen) {
+    if (attachment.type === AttachmentTypes.CARD) {
+      if (linkedCard) {
+        dispatch(push(Paths.CARDS.replace(':id', linkedCard.id)));
+      }
+    } else if (onOpen) {
       onOpen();
     } else {
       window.open(attachment.data.url, '_blank');
     }
-  }, [onOpen, attachment.data]);
+  }, [onOpen, attachment, linkedCard, dispatch]);
 
   const handleDownloadClick = useCallback(
     (event) => {
@@ -95,7 +113,9 @@ const ItemContent = React.forwardRef(({ id, onOpen }, ref) => {
                                 jsx-a11y/no-static-element-interactions */
     <div ref={ref} className={styles.wrapper} onClick={handleClick}>
       <div
-        className={styles.thumbnail}
+        className={classNames(styles.thumbnail, {
+          [styles.thumbnailCard]: attachment.type === AttachmentTypes.CARD,
+        })}
         style={{
           background:
             attachment.type === AttachmentTypes.FILE &&
@@ -121,12 +141,40 @@ const ItemContent = React.forwardRef(({ id, onOpen }, ref) => {
             <span className={styles.thumbnailExtension}>{attachment.data.extension || '-'}</span>
           ))}
         {attachment.type === AttachmentTypes.LINK && <Favicon url={attachment.data.faviconUrl} />}
+        {attachment.type === AttachmentTypes.CARD && <Icon fitted name="columns" />}
       </div>
       <div className={styles.details}>
         <span className={styles.name}>{attachment.name}</span>
         <span className={styles.information}>
-          <TimeAgo date={attachment.createdAt} />
+          {attachment.type === AttachmentTypes.CARD && linkedCard ? (
+            <>
+              {linkedCard.isClosed ? t('common.closed') : t('common.active')}
+              {linkedList && ` - ${linkedList.name}`}
+            </>
+          ) : (
+            <TimeAgo date={attachment.createdAt} />
+          )}
         </span>
+        {attachment.type === AttachmentTypes.CARD && (
+          <span className={styles.cardMeta}>
+            {linkedCard ? (
+              <>
+                {linkedUserIds.length > 0 && (
+                  <span className={styles.cardUsers}>
+                    {linkedUserIds.map((userId) => (
+                      <span key={userId} className={styles.cardUser}>
+                        <UserAvatar id={userId} size="tiny" />
+                      </span>
+                    ))}
+                  </span>
+                )}
+                <span className={styles.optionText}>{t('action.openCard')}</span>
+              </>
+            ) : (
+              t('common.cardNotFound')
+            )}
+          </span>
+        )}
         {attachment.type === AttachmentTypes.FILE && (
           <span className={styles.options}>
             <button type="button" className={styles.option} onClick={handleDownloadClick}>

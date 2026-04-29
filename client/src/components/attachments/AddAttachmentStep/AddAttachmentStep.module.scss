@@ -4,11 +4,25 @@
  */
 
 :global(#app) {
+  .cardField {
+    margin-bottom: 8px;
+  }
+
+  .cardForm {
+    margin-top: 12px;
+  }
+
   .divider {
     background: #eee;
     border: 0;
     height: 1px;
     margin-bottom: 8px;
+  }
+
+  .error {
+    color: #c53030;
+    font-size: 12px;
+    margin: -2px 0 8px;
   }
 
   .menu {

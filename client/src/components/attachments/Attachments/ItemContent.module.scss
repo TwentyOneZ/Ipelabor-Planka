@@ -36,6 +36,23 @@
     margin-bottom: 6px;
   }
 
+  .cardMeta {
+    align-items: center;
+    color: #6b808c;
+    display: flex;
+    line-height: 20px;
+  }
+
+  .cardUser {
+    display: inline-block;
+    margin-right: -4px;
+  }
+
+  .cardUsers {
+    display: inline-flex;
+    margin-right: 10px;
+  }
+
   .name {
     color: #17394d;
     font-size: 14px;
@@ -97,6 +114,11 @@
     padding: 0 20px 0 20px;
     text-overflow: ellipsis;
     text-transform: uppercase;
+  }
+
+  .thumbnailCard {
+    color: #5e6c84;
+    font-size: 24px;
   }
 
   .thumbnailLabel {
