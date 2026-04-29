@@ -192,6 +192,7 @@ module.exports = {
     }
 
     let data;
+    let name = inputs.name;
     if (inputs.type === Attachment.Types.FILE) {
       let files;
       try {
@@ -217,21 +218,56 @@ module.exports = {
         throw Errors.LINKED_CARD_NOT_FOUND;
       }
 
-      const { card: linkedCard, board: linkedBoard } = await sails.helpers.cards
+      const {
+        card: linkedCard,
+        list: linkedList,
+        board: linkedBoard,
+        project: linkedProject,
+      } = await sails.helpers.cards
         .getPathToProjectById(inputs.linkedCardId)
         .intercept('pathNotFound', () => Errors.LINKED_CARD_NOT_FOUND);
 
-      if (linkedBoard.id !== board.id || linkedCard.id === card.id) {
+      if (linkedCard.id === card.id) {
         throw Errors.LINKED_CARD_NOT_FOUND;
       }
 
+      if (linkedBoard.id !== board.id) {
+        const linkedBoardMembership = await BoardMembership.qm.getOneByBoardIdAndUserId(
+          linkedBoard.id,
+          currentUser.id,
+        );
+
+        if (!linkedBoardMembership) {
+          throw Errors.LINKED_CARD_NOT_FOUND;
+        }
+      }
+
+      const linkedCardMemberships = await CardMembership.qm.getByCardId(linkedCard.id);
+      const linkedUserIds = sails.helpers.utils.mapRecords(linkedCardMemberships, 'userId');
+      const linkedUsers = await User.qm.getByIds(linkedUserIds);
+
+      if (!linkedCard.name) {
+        throw Errors.LINKED_CARD_NOT_FOUND;
+      }
+
+      name = linkedCard.name;
       data = {
         cardId: linkedCard.id,
+        boardId: linkedBoard.id,
+        listId: linkedList.id,
+        projectName: linkedProject.name,
+        boardName: linkedBoard.name,
+        listName: linkedList.name,
+        name: linkedCard.name,
+        isClosed: linkedCard.isClosed,
+        userIds: linkedUserIds,
+        users: linkedUsers.map((user) => _.pick(user, ['id', 'name'])),
       };
     }
 
     const values = {
-      ..._.pick(inputs, ['type', 'name']),
+      type: inputs.type,
+      name,
       data,
     };
 

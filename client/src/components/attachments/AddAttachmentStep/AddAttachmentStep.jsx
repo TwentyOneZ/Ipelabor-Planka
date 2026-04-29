@@ -75,7 +75,7 @@ const AddAttachmentStep = React.memo(({ onClose }) => {
     const cardId = selectedCardId || cardIdFromUrl || trimmedCardUrl;
     const card = cards.find((cardItem) => cardItem.id === cardId);
 
-    if (!card) {
+    if (!cardId) {
       setError(t('common.cardNotFound'));
       return;
     }
@@ -83,8 +83,8 @@ const AddAttachmentStep = React.memo(({ onClose }) => {
     dispatch(
       entryActions.createAttachmentInCurrentCard({
         type: AttachmentTypes.CARD,
-        linkedCardId: card.id,
-        name: card.name,
+        linkedCardId: cardId,
+        name: card ? card.name : cardId,
       }),
     );
 

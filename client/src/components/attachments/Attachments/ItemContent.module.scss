@@ -53,6 +53,15 @@
     margin-right: 10px;
   }
 
+  .cardUserNames {
+    display: inline-block;
+    margin-right: 10px;
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .name {
     color: #17394d;
     font-size: 14px;

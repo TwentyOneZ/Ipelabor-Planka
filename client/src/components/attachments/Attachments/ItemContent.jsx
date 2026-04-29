@@ -40,6 +40,9 @@ const ItemContent = React.forwardRef(({ id, onOpen }, ref) => {
   );
   const linkedUserIds =
     useSelector((state) => (linkedCardId ? selectUserIdsByCardId(state, linkedCardId) : [])) || [];
+  const linkedCardPreview = linkedCard || attachment.data;
+  const linkedCardUserIds = linkedCard ? linkedUserIds : [];
+  const linkedCardUsers = linkedCard ? [] : attachment.data.users || [];
 
   const isCover = useSelector(
     (state) => id === selectors.selectCurrentCard(state).coverAttachmentId,
@@ -62,8 +65,8 @@ const ItemContent = React.forwardRef(({ id, onOpen }, ref) => {
 
   const handleClick = useCallback(() => {
     if (attachment.type === AttachmentTypes.CARD) {
-      if (linkedCard) {
-        dispatch(push(Paths.CARDS.replace(':id', linkedCard.id)));
+      if (linkedCardId) {
+        dispatch(push(Paths.CARDS.replace(':id', linkedCardId)));
       }
     } else if (onOpen) {
       onOpen();
@@ -146,10 +149,12 @@ const ItemContent = React.forwardRef(({ id, onOpen }, ref) => {
       <div className={styles.details}>
         <span className={styles.name}>{attachment.name}</span>
         <span className={styles.information}>
-          {attachment.type === AttachmentTypes.CARD && linkedCard ? (
+          {attachment.type === AttachmentTypes.CARD && linkedCardPreview ? (
             <>
-              {linkedCard.isClosed ? t('common.closed') : t('common.active')}
-              {linkedList && ` - ${linkedList.name}`}
+              {linkedCardPreview.isClosed ? t('common.closed') : t('common.active')}
+              {linkedList
+                ? ` - ${linkedList.name}`
+                : linkedCardPreview.listName && ` - ${linkedCardPreview.listName}`}
             </>
           ) : (
             <TimeAgo date={attachment.createdAt} />
@@ -157,15 +162,20 @@ const ItemContent = React.forwardRef(({ id, onOpen }, ref) => {
         </span>
         {attachment.type === AttachmentTypes.CARD && (
           <span className={styles.cardMeta}>
-            {linkedCard ? (
+            {linkedCardPreview ? (
               <>
-                {linkedUserIds.length > 0 && (
+                {linkedCardUserIds.length > 0 && (
                   <span className={styles.cardUsers}>
-                    {linkedUserIds.map((userId) => (
+                    {linkedCardUserIds.map((userId) => (
                       <span key={userId} className={styles.cardUser}>
                         <UserAvatar id={userId} size="tiny" />
                       </span>
                     ))}
+                  </span>
+                )}
+                {linkedCardUsers.length > 0 && (
+                  <span className={styles.cardUserNames}>
+                    {linkedCardUsers.map((user) => user.name).join(', ')}
                   </span>
                 )}
                 <span className={styles.optionText}>{t('action.openCard')}</span>
