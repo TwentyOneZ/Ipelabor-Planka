@@ -31,7 +31,8 @@ const ItemContent = React.forwardRef(({ id, onOpen }, ref) => {
   const selectUserIdsByCardId = useMemo(() => selectors.makeSelectUserIdsByCardId(), []);
 
   const attachment = useSelector((state) => selectAttachmentById(state, id));
-  const linkedCardId = attachment.data && attachment.data.cardId;
+  const attachmentData = attachment.data || {};
+  const linkedCardId = attachmentData.cardId;
   const linkedCard = useSelector((state) =>
     linkedCardId ? selectCardById(state, linkedCardId) : null,
   );
@@ -40,9 +41,9 @@ const ItemContent = React.forwardRef(({ id, onOpen }, ref) => {
   );
   const linkedUserIds =
     useSelector((state) => (linkedCardId ? selectUserIdsByCardId(state, linkedCardId) : [])) || [];
-  const linkedCardPreview = linkedCard || attachment.data;
+  const linkedCardPreview = linkedCard || (attachment.data ? attachmentData : null);
   const linkedCardUserIds = linkedCard ? linkedUserIds : [];
-  const linkedCardUsers = linkedCard ? [] : attachment.data.users || [];
+  const linkedCardUsers = linkedCard ? [] : attachmentData.users || [];
 
   const isCover = useSelector(
     (state) => id === selectors.selectCurrentCard(state).coverAttachmentId,
@@ -73,7 +74,7 @@ const ItemContent = React.forwardRef(({ id, onOpen }, ref) => {
     } else {
       window.open(attachment.data.url, '_blank');
     }
-  }, [onOpen, attachment, linkedCard, dispatch]);
+  }, [onOpen, attachment, linkedCardId, dispatch]);
 
   const handleDownloadClick = useCallback(
     (event) => {

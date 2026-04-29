@@ -15,13 +15,25 @@ export const transformAttachment = (attachment) => ({
   }),
 });
 
+const transformIncluded = (included) => ({
+  ...included,
+  ...(included.attachments && {
+    attachments: included.attachments.map(transformAttachment),
+  }),
+});
+
+const transformAttachmentBody = (body) => ({
+  ...body,
+  item: transformAttachment(body.item),
+  ...(body.included && {
+    included: transformIncluded(body.included),
+  }),
+});
+
 /* Actions */
 
 const createAttachment = (cardId, data, headers) =>
-  socket.post(`/cards/${cardId}/attachments`, data, headers).then((body) => ({
-    ...body,
-    item: transformAttachment(body.item),
-  }));
+  socket.post(`/cards/${cardId}/attachments`, data, headers).then(transformAttachmentBody);
 
 const createAttachmentWithFile = (cardId, { file, ...data }, requestId, headers) =>
   http
@@ -33,10 +45,7 @@ const createAttachmentWithFile = (cardId, { file, ...data }, requestId, headers)
       },
       headers,
     )
-    .then((body) => ({
-      ...body,
-      item: transformAttachment(body.item),
-    }));
+    .then(transformAttachmentBody);
 
 const updateAttachment = (id, data, headers) =>
   socket.patch(`/attachments/${id}`, data, headers).then((body) => ({

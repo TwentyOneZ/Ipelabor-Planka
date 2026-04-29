@@ -12,11 +12,12 @@ const createAttachment = (attachment) => ({
   },
 });
 
-createAttachment.success = (localId, attachment) => ({
+createAttachment.success = (localId, attachment, attachments) => ({
   type: ActionTypes.ATTACHMENT_CREATE__SUCCESS,
   payload: {
     localId,
     attachment,
+    attachments,
   },
 });
 

@@ -37,8 +37,9 @@ export function* createAttachment(cardId, data) {
   );
 
   let attachment;
+  let included;
   try {
-    ({ item: attachment } = yield nextData.type === AttachmentTypes.FILE
+    ({ item: attachment, included } = yield nextData.type === AttachmentTypes.FILE
       ? call(request, api.createAttachmentWithFile, cardId, nextData, localId)
       : call(request, api.createAttachment, cardId, nextData));
   } catch (error) {
@@ -62,7 +63,7 @@ export function* createAttachment(cardId, data) {
     return;
   }
 
-  yield put(actions.createAttachment.success(localId, attachment));
+  yield put(actions.createAttachment.success(localId, attachment, included?.attachments || []));
 }
 
 export function* createAttachmentInCurrentCard(data) {

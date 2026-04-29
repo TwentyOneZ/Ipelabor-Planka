@@ -99,6 +99,12 @@ export default class extends BaseModel {
         Attachment.withId(payload.localId).delete();
         Attachment.upsert(prepareAttachment(payload.attachment));
 
+        if (payload.attachments) {
+          payload.attachments.forEach((attachment) => {
+            Attachment.upsert(prepareAttachment(attachment));
+          });
+        }
+
         break;
       case ActionTypes.ATTACHMENT_CREATE__FAILURE:
         Attachment.withId(payload.localId).delete();

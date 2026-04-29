@@ -32,7 +32,7 @@
  *             properties:
  *               type:
  *                 type: string
- *                 enum: [file, link]
+ *                 enum: [file, link, card]
  *                 description: Type of the attachment
  *                 example: link
  *               file:
@@ -45,6 +45,10 @@
  *                 maxLength: 2048
  *                 description: URL for the link attachment
  *                 example: https://google.com/search?q=planka
+ *               linkedCardId:
+ *                 type: string
+ *                 description: ID of the card to attach when type is card
+ *                 example: "1357158568008091267"
  *               name:
  *                 type: string
  *                 maxLength: 128
@@ -117,6 +121,29 @@ const Errors = {
   LINKED_CARD_NOT_FOUND: {
     linkedCardNotFound: 'Linked card not found',
   },
+};
+
+const buildCardAttachmentValues = async ({ card, list, board, project }) => {
+  const cardMemberships = await CardMembership.qm.getByCardId(card.id);
+  const userIds = sails.helpers.utils.mapRecords(cardMemberships, 'userId');
+  const users = await User.qm.getByIds(userIds);
+
+  return {
+    type: Attachment.Types.CARD,
+    name: card.name,
+    data: {
+      cardId: card.id,
+      boardId: board.id,
+      listId: list.id,
+      projectName: project.name,
+      boardName: board.name,
+      listName: list.name,
+      name: card.name,
+      isClosed: card.isClosed,
+      userIds,
+      users: users.map((user) => _.pick(user, ['id', 'name'])),
+    },
+  };
 };
 
 module.exports = {
@@ -193,6 +220,10 @@ module.exports = {
 
     let data;
     let name = inputs.name;
+    let reciprocalAttachmentValues;
+    let reciprocalAttachmentPath;
+    let existingReciprocalAttachment;
+
     if (inputs.type === Attachment.Types.FILE) {
       let files;
       try {
@@ -231,8 +262,9 @@ module.exports = {
         throw Errors.LINKED_CARD_NOT_FOUND;
       }
 
+      let linkedBoardMembership;
       if (linkedBoard.id !== board.id) {
-        const linkedBoardMembership = await BoardMembership.qm.getOneByBoardIdAndUserId(
+        linkedBoardMembership = await BoardMembership.qm.getOneByBoardIdAndUserId(
           linkedBoard.id,
           currentUser.id,
         );
@@ -242,27 +274,45 @@ module.exports = {
         }
       }
 
-      const linkedCardMemberships = await CardMembership.qm.getByCardId(linkedCard.id);
-      const linkedUserIds = sails.helpers.utils.mapRecords(linkedCardMemberships, 'userId');
-      const linkedUsers = await User.qm.getByIds(linkedUserIds);
-
       if (!linkedCard.name) {
         throw Errors.LINKED_CARD_NOT_FOUND;
       }
 
-      name = linkedCard.name;
-      data = {
-        cardId: linkedCard.id,
-        boardId: linkedBoard.id,
-        listId: linkedList.id,
-        projectName: linkedProject.name,
-        boardName: linkedBoard.name,
-        listName: linkedList.name,
-        name: linkedCard.name,
-        isClosed: linkedCard.isClosed,
-        userIds: linkedUserIds,
-        users: linkedUsers.map((user) => _.pick(user, ['id', 'name'])),
-      };
+      ({ name, data } = await buildCardAttachmentValues({
+        card: linkedCard,
+        list: linkedList,
+        board: linkedBoard,
+        project: linkedProject,
+      }));
+
+      const canCreateReciprocalAttachment =
+        linkedBoard.id === board.id ||
+        linkedBoardMembership.role === BoardMembership.Roles.EDITOR;
+
+      if (canCreateReciprocalAttachment) {
+        reciprocalAttachmentValues = await buildCardAttachmentValues({
+          card,
+          list,
+          board,
+          project,
+        });
+
+        reciprocalAttachmentPath = {
+          project: linkedProject,
+          board: linkedBoard,
+          list: linkedList,
+          card: linkedCard,
+        };
+
+        const linkedAttachments = await Attachment.qm.getByCardId(linkedCard.id);
+
+        existingReciprocalAttachment = linkedAttachments.find(
+          (attachmentItem) =>
+            attachmentItem.type === Attachment.Types.CARD &&
+            attachmentItem.data &&
+            attachmentItem.data.cardId === card.id,
+        );
+      }
     }
 
     const values = {
@@ -284,8 +334,29 @@ module.exports = {
       request: this.req,
     });
 
+    let reciprocalAttachment = existingReciprocalAttachment;
+
+    if (reciprocalAttachmentValues && !reciprocalAttachment) {
+      reciprocalAttachment = await sails.helpers.attachments.createOne.with({
+        project: reciprocalAttachmentPath.project,
+        board: reciprocalAttachmentPath.board,
+        list: reciprocalAttachmentPath.list,
+        values: {
+          ...reciprocalAttachmentValues,
+          card: reciprocalAttachmentPath.card,
+          creatorUser: currentUser,
+        },
+        request: this.req,
+      });
+    }
+
     return exits.success({
       item: sails.helpers.attachments.presentOne(attachment),
+      included: {
+        attachments: reciprocalAttachment
+          ? sails.helpers.attachments.presentMany([reciprocalAttachment])
+          : [],
+      },
     });
   },
 };
